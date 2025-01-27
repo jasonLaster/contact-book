@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect, useCallback, useRef } from "react"
 import type { Contact, PhoneNumber } from "@/lib/db/schema"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"

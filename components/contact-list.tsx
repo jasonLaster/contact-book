@@ -1,18 +1,32 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
-import { useRouter, useParams, useSelectedLayoutSegments } from "next/navigation"
+import { useMemo, useState, useEffect, useRef } from "react"
+import { useRouter, useSelectedLayoutSegments } from "next/navigation"
 import type { Contact, PhoneNumber } from "@/lib/db/schema"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { VariableSizeList } from "react-window"
 import { ContactPane } from "./contact-pane"
 
 type ContactWithPhoneNumbers = Contact & { phoneNumbers: PhoneNumber[]; urlName: string }
 
+type ListItem = {
+  type: "header" | "contact"
+  letter?: string
+  contact?: ContactWithPhoneNumbers
+  height: number
+}
+
+const ITEM_SIZE = 40 // Height in pixels for each item
+const HEADER_SIZE = 56 // Height in pixels for section headers
+
 export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] }) {
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
+  const listRef = useRef<VariableSizeList>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerHeight, setContainerHeight] = useState(0)
   const segments = useSelectedLayoutSegments()
   const selectedContactUrlName = segments[1] // ['contact', 'urlName']
+  const [scrollOffset, setScrollOffset] = useState(0)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024)
@@ -21,36 +35,61 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
     return () => window.removeEventListener("resize", checkMobile)
   }, [])
 
-  const groupedContacts = useMemo(() => {
-    const deduped = contacts.reduce(
-      (acc, contact) => {
-        if (contact.name && contact.name.length > 0) {
-          const firstChar = contact.name[0].toUpperCase()
-          if (!/^\d+$/.test(firstChar)) {
-            if (!acc[contact.name]) {
-              acc[contact.name] = contact
-            }
-          }
-        }
-        return acc
-      },
-      {} as Record<string, ContactWithPhoneNumbers>,
-    )
+  useEffect(() => {
+    const updateHeight = () => {
+      if (containerRef.current) {
+        setContainerHeight(containerRef.current.clientHeight)
+      }
+    }
+    updateHeight()
+    window.addEventListener('resize', updateHeight)
+    return () => window.removeEventListener('resize', updateHeight)
+  }, [])
 
-    return Object.values(deduped).reduce(
-      (acc, contact) => {
-        const firstChar = contact.name[0].toUpperCase()
-        if (!acc[firstChar]) {
-          acc[firstChar] = []
-        }
-        acc[firstChar].push(contact)
-        return acc
-      },
-      {} as Record<string, ContactWithPhoneNumbers[]>,
-    )
+  const { flattenedItems, letterToIndex, totalHeight } = useMemo(() => {
+    const items: ListItem[] = []
+    const letterMap = new Map<string, number>()
+    const groupedContacts = new Map<string, Set<ContactWithPhoneNumbers>>()
+    const seenContacts = new Set<string>()
+    let height = 0
+
+    // Group contacts by first letter
+    contacts.forEach(contact => {
+      if (!contact.name || seenContacts.has(contact.id)) return
+      const letter = contact.name[0].toUpperCase()
+      if (!/[A-Z]/.test(letter)) return
+
+      seenContacts.add(contact.id)
+      if (!groupedContacts.has(letter)) {
+        groupedContacts.set(letter, new Set())
+      }
+      groupedContacts.get(letter)!.add(contact)
+    })
+
+    // Create flattened list with headers
+    Array.from(groupedContacts.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([letter, contactsSet]) => {
+        letterMap.set(letter, items.length)
+        items.push({ type: "header", letter, height: HEADER_SIZE })
+        height += HEADER_SIZE
+        
+        Array.from(contactsSet)
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .forEach(contact => {
+            items.push({ type: "contact", contact, height: ITEM_SIZE })
+            height += ITEM_SIZE
+          })
+      })
+
+    return {
+      flattenedItems: items,
+      letterToIndex: letterMap,
+      totalHeight: height
+    }
   }, [contacts])
 
-  const availableLetters = Object.keys(groupedContacts).sort()
+  const availableLetters = Array.from(letterToIndex.keys()).sort()
   const selectedContact = contacts.find((c) => c.urlName === selectedContactUrlName)
 
   const handleContactSelect = (contact: ContactWithPhoneNumbers) => {
@@ -61,32 +100,73 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
     }
   }
 
+  const getItemSize = (index: number) => {
+    return flattenedItems[index].height
+  }
+
+  const getCurrentLetter = () => {
+    if (!listRef.current) return ""
+    let currentPosition = 0
+    let currentHeaderIndex = -1
+    
+    for (let i = 0; i < flattenedItems.length; i++) {
+      if (currentPosition > scrollOffset) break
+      if (flattenedItems[i].type === "header") {
+        currentHeaderIndex = i
+      }
+      currentPosition += flattenedItems[i].height
+    }
+    
+    return currentHeaderIndex >= 0 ? flattenedItems[currentHeaderIndex].letter : ""
+  }
+
+  const renderRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const item = flattenedItems[index]
+    
+    if (item.type === "header") {
+      return (
+        <div style={style}>
+          <div className="text-2xl font-semibold bg-background z-20 py-2">
+            {item.letter}
+          </div>
+        </div>
+      )
+    }
+
+    if (!item.contact) return null
+
+    return (
+      <div
+        style={style}
+        className={`p-2 hover:bg-accent rounded-lg transition-colors cursor-pointer ${
+          selectedContactUrlName === item.contact.urlName ? "bg-accent" : ""
+        }`}
+        onClick={() => handleContactSelect(item.contact!)}
+      >
+        <div className="font-medium">{item.contact.name}</div>
+      </div>
+    )
+  }
+
   const renderContactList = () => (
     <div className="relative flex-1">
-      <ScrollArea className="h-[calc(100vh-200px)] lg:h-[calc(100vh-100px)] pr-8">
-        {Object.keys(groupedContacts).length === 0 ? (
+      <div ref={containerRef} className="h-[calc(100vh-200px)] lg:h-[calc(100vh-100px)] pr-8">
+        {flattenedItems.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">No contacts found</div>
         ) : (
-          availableLetters.map((letter) => (
-            <div key={letter} id={letter} className="mb-6">
-              <h2 className="text-2xl font-semibold mb-4 sticky top-0 bg-background z-20 py-2">{letter}</h2>
-              <div className="space-y-2">
-                {groupedContacts[letter].map((contact) => (
-                  <div
-                    key={contact.id}
-                    className={`p-2 hover:bg-accent rounded-lg transition-colors cursor-pointer ${
-                      selectedContactUrlName === contact.urlName ? "bg-accent" : ""
-                    }`}
-                    onClick={() => handleContactSelect(contact)}
-                  >
-                    <div className="font-medium">{contact.name}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))
+          <VariableSizeList
+            ref={listRef}
+            height={containerHeight || 400}
+            width="100%"
+            itemCount={flattenedItems.length}
+            itemSize={getItemSize}
+            onScroll={({ scrollOffset }) => setScrollOffset(scrollOffset)}
+            estimatedItemSize={ITEM_SIZE}
+          >
+            {renderRow}
+          </VariableSizeList>
         )}
-      </ScrollArea>
+      </div>
       <nav
         className="absolute right-0 top-0 bottom-0 flex flex-col justify-center text-xs space-y-1 pl-2 pr-1 bg-background/80 backdrop-blur-sm z-30"
         aria-label="Alphabet navigation"
@@ -98,8 +178,10 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
               availableLetters.includes(letter) ? "font-bold" : ""
             }`}
             onClick={() => {
-              const element = document.getElementById(letter)
-              if (element) element.scrollIntoView({ behavior: "smooth" })
+              const index = letterToIndex.get(letter)
+              if (index !== undefined && listRef.current) {
+                listRef.current.scrollToItem(index, "start")
+              }
             }}
             disabled={!availableLetters.includes(letter)}
             aria-label={`Scroll to ${letter}`}

@@ -2,55 +2,49 @@
 
 import { revalidatePath } from "next/cache"
 import { db } from "./db"
-import { contacts, phoneNumbers } from "./db/schema"
+import { contacts, phoneNumbers, type Contact, type PhoneNumber } from "./db/schema"
 import { eq, or, ilike } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { put } from "@vercel/blob"
 
 export async function getContacts(search?: string) {
   try {
-    const allContacts = await db
-      .select({
-        ...contacts,
-        phoneNumbers: phoneNumbers,
-      })
-      .from(contacts)
-      .leftJoin(phoneNumbers, eq(contacts.id, phoneNumbers.contactId))
+    // First get all contacts
+    const allContacts = await db.select().from(contacts)
 
-    const groupedContacts = allContacts.reduce(
-      (acc, row) => {
-        if (!acc[row.id]) {
-          acc[row.id] = { ...row, phoneNumbers: [] }
-        }
-        if (row.phoneNumbers) {
-          acc[row.id].phoneNumbers.push(row.phoneNumbers)
-        }
-        return acc
-      },
-      {} as Record<string, any>,
-    )
+    // Then get phone numbers for each contact
+    const phoneNumbersMap = new Map<string, PhoneNumber[]>()
+    const allPhoneNumbers = await db.select().from(phoneNumbers)
 
-    const contactsArray = Object.values(groupedContacts)
-
-    // Generate URL-friendly names and handle duplicates
-    const urlNames = new Map<string, number>()
-    contactsArray.forEach((contact: any) => {
-      let urlName = contact.name.toLowerCase().replace(/\s+/g, "-")
-      const count = urlNames.get(urlName) || 0
-      if (count > 0) {
-        urlName = `${urlName}-${count}`
+    allPhoneNumbers.forEach(phone => {
+      if (!phoneNumbersMap.has(phone.contactId)) {
+        phoneNumbersMap.set(phone.contactId, [])
       }
-      urlNames.set(urlName, count + 1)
-      contact.urlName = urlName
+      phoneNumbersMap.get(phone.contactId)!.push(phone)
     })
 
-    console.log("Fetched contacts:", contactsArray)
+    // Deduplicate contacts by name
+    const seenNames = new Set<string>()
+    const uniqueContacts = allContacts.filter(contact => {
+      if (!contact.name || seenNames.has(contact.name)) {
+        return false
+      }
+      seenNames.add(contact.name)
+      return true
+    })
+
+    // Combine the data
+    const contactsArray = uniqueContacts.map(contact => ({
+      ...contact,
+      phoneNumbers: phoneNumbersMap.get(contact.id) || [],
+      urlName: contact.name.toLowerCase().replace(/\s+/g, "-")
+    }))
 
     if (search) {
       return contactsArray.filter(
-        (contact: any) =>
+        contact =>
           contact.name.toLowerCase().includes(search.toLowerCase()) ||
-          contact.phoneNumbers.some((phone: any) => phone.number.includes(search)) ||
+          contact.phoneNumbers.some(phone => phone.number.includes(search)) ||
           (contact.email && contact.email.toLowerCase().includes(search.toLowerCase())),
       )
     }
@@ -64,7 +58,7 @@ export async function getContacts(search?: string) {
 
 export async function addContact(
   name: string,
-  phoneNumbers: { number: string; label?: string; type: string; isPrimary?: boolean }[],
+  phones: { number: string; label?: string; type: string; isPrimary?: boolean }[],
   email?: string,
   notes?: string,
 ) {
@@ -76,9 +70,9 @@ export async function addContact(
     notes,
   })
 
-  if (phoneNumbers && phoneNumbers.length > 0) {
+  if (phones && phones.length > 0) {
     await db.insert(phoneNumbers).values(
-      phoneNumbers.map((phone) => ({
+      phones.map((phone) => ({
         contactId,
         number: phone.number,
         label: phone.label,

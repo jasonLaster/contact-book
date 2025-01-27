@@ -1,0 +1,41 @@
+@keyframes tron-snake {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(65, 105, 225, 0.7) inset;
+  }
+  25% {
+    box-shadow: 100% 0 0 3px rgba(93, 63, 211, 0.7) inset;
+  }
+  50% {
+    box-shadow: 100% 100% 0 3px rgba(138, 43, 226, 0.7) inset;
+  }
+  75% {
+    box-shadow: 0 100% 0 3px rgba(93, 63, 211, 0.7) inset;
+  }
+}
+
+.tron-loading {
+  animation: tron-snake 1s infinite linear;
+  border-radius: 0.375rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.tron-loading::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(65, 105, 225, 0.3), rgba(138, 43, 226, 0.3), transparent);
+  transform: translateX(-100%);
+  animation: tron-glow 1s infinite linear;
+}
+
+@keyframes tron-glow {
+  100% {
+    transform: translateX(100%);
+  }
+}
+

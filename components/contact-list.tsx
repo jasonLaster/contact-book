@@ -5,6 +5,7 @@ import { useRouter, useSelectedLayoutSegments } from "next/navigation"
 import type { Contact, PhoneNumber } from "@/lib/db/schema"
 import { VariableSizeList } from "react-window"
 import { ContactPane } from "./contact-pane"
+import { SearchBar } from "./search-bar"
 
 type ContactWithPhoneNumbers = Contact & { phoneNumbers: PhoneNumber[]; urlName: string }
 
@@ -27,8 +28,37 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerHeight, setContainerHeight] = useState(0)
   const segments = useSelectedLayoutSegments()
-  const selectedContactUrlName = segments[1] // ['contact', 'urlName']
+  const [selectedContactUrlName, setSelectedContactUrlName] = useState<string | null>(null)
   const [scrollOffset, setScrollOffset] = useState(0)
+
+  // Update selected contact from URL
+  useEffect(() => {
+    const updateSelectedContact = () => {
+      // Check URL segments first (mobile route)
+      if (segments[1]) {
+        setSelectedContactUrlName(segments[1])
+        return
+      }
+
+      // Check query parameters (desktop route)
+      const params = new URLSearchParams(window.location.search)
+      const contactParam = params.get('contact')
+      setSelectedContactUrlName(contactParam)
+    }
+
+    updateSelectedContact()
+    
+    // Listen for URL changes
+    window.addEventListener('popstate', updateSelectedContact)
+    return () => window.removeEventListener('popstate', updateSelectedContact)
+  }, [segments])
+
+  // Add debug logging for selection state
+  useEffect(() => {
+    console.log("[ContactList] URL Segments:", segments)
+    console.log("[ContactList] Selected Contact URL:", selectedContactUrlName)
+    console.log("[ContactList] Current URL:", window.location.href)
+  }, [segments, selectedContactUrlName])
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024)
@@ -92,7 +122,7 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
   }, [contacts])
 
   const availableLetters = Array.from(letterToIndex.keys()).sort()
-  const selectedContact = contacts.find((c) => c.urlName === selectedContactUrlName)
+  const selectedContactFromUrl = contacts.find((c) => c.urlName === selectedContactUrlName)
 
   const handleContactSelect = (contact: ContactWithPhoneNumbers) => {
     if (isMobile) {
@@ -127,7 +157,7 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
     
     if (item.type === "header") {
       return (
-        <div style={style}>
+        <div style={style} className="px-4">
           <div className="text-2xl font-semibold bg-background z-20 py-2">
             {item.letter}
           </div>
@@ -140,10 +170,15 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
     return (
       <div
         style={style}
-        className={`p-2 hover:bg-accent rounded-lg transition-colors cursor-pointer ${
+        className={`px-4 py-2 hover:bg-accent transition-colors cursor-pointer ${
           selectedContactUrlName === item.contact.urlName ? "bg-accent" : ""
         }`}
-        onClick={() => handleContactSelect(item.contact!)}
+        onClick={() => {
+          if (item.contact) {
+            console.log("[ContactList] Selecting contact:", item.contact.name, item.contact.urlName)
+            handleContactSelect(item.contact)
+          }
+        }}
       >
         <div className="font-medium">{item.contact.name}</div>
       </div>
@@ -151,21 +186,37 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
   }
 
   const renderContactList = () => (
-    <div className="relative flex-1">
-      <div ref={containerRef} className="h-[calc(100vh-200px)] lg:h-[calc(100vh-100px)] pr-[40px] relative">
+    <div className="flex flex-col h-full">
+      <div className="px-4 mb-4">
+        <SearchBar />
+      </div>
+      <div ref={containerRef} className="flex-1 min-h-0 relative overflow-hidden">
         {flattenedItems.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">No contacts found</div>
         ) : (
           <>
+            <div className="pr-8">
+              <VariableSizeList
+                ref={listRef}
+                height={containerHeight || 400}
+                width="100%"
+                itemCount={flattenedItems.length}
+                itemSize={getItemSize}
+                onScroll={({ scrollOffset }) => setScrollOffset(scrollOffset)}
+                estimatedItemSize={ITEM_SIZE}
+                className="scrollbar-thin scrollbar-thumb-accent scrollbar-track-transparent"
+              >
+                {renderRow}
+              </VariableSizeList>
+            </div>
             <nav
-              className="absolute right-[16px] top-0 bottom-0 flex flex-col justify-center text-xs space-y-1 pl-2 pr-1 bg-background/80 backdrop-blur-sm z-30"
-              style={{ transform: `translateX(-${SCROLLBAR_WIDTH}px)` }}
+              className="absolute right-8 top-0 bottom-0 flex flex-col justify-center text-xs space-y-1 pl-2 pr-1 bg-background/80 backdrop-blur-sm z-30"
               aria-label="Alphabet navigation"
             >
               {Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZ").map((letter) => (
                 <button
                   key={letter}
-                  className={`text-muted-foreground hover:text-foreground ${
+                  className={`w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground ${
                     availableLetters.includes(letter) ? "font-bold" : ""
                   }`}
                   onClick={() => {
@@ -181,35 +232,19 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
                 </button>
               ))}
             </nav>
-            <VariableSizeList
-              ref={listRef}
-              height={containerHeight || 400}
-              width="100%"
-              itemCount={flattenedItems.length}
-              itemSize={getItemSize}
-              onScroll={({ scrollOffset }) => setScrollOffset(scrollOffset)}
-              estimatedItemSize={ITEM_SIZE}
-            >
-              {renderRow}
-            </VariableSizeList>
           </>
         )}
       </div>
     </div>
   )
 
-  if (isMobile && selectedContact) {
+  if (isMobile && selectedContactFromUrl) {
     return null // Let the dynamic route handle mobile view
   }
 
   return (
-    <div className="flex flex-row gap-4">
+    <div className="h-full overflow-hidden">
       {renderContactList()}
-      {!isMobile && selectedContact && (
-        <div className="w-1/3">
-          <ContactPane contact={selectedContact} onClose={() => router.push("/")} isMobile={false} />
-        </div>
-      )}
     </div>
   )
 }

@@ -408,7 +408,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
   if (isLoading) {
     return (
-      <div className={`bg-background h-screen flex flex-col ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"}`}>
+      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"}`}>
         <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
           {(isMobile || !onClose) && (
             <Button variant="ghost" size="icon" disabled>
@@ -426,7 +426,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
           </div>
         </div>
 
-        <div className="flex flex-col p-4 overflow-hidden flex-1 h-[calc(100vh-3.5rem)]">
+        <div className="flex flex-col flex-1 p-4 overflow-hidden">
           <div className="flex flex-col items-center space-y-4 flex-shrink-0">
             <Skeleton className="w-24 h-24 rounded-full" />
             <Skeleton className="h-8 w-48" />
@@ -458,7 +458,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
   if (!contact) {
     return (
-      <div className="bg-background p-6 shadow-lg h-full flex flex-col items-center justify-center text-muted-foreground">
+      <div className="bg-background p-6 shadow-lg flex-1 flex flex-col items-center justify-center text-muted-foreground">
         <UserCircle2 className="w-20 h-20 mb-4" />
         <p className="text-lg">Select a contact to view details</p>
       </div>
@@ -467,7 +467,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
   return (
     <>
-      <div className={`bg-background h-screen flex flex-col ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"} transition-opacity duration-200 ${isLoading ? "opacity-50" : "opacity-100"}`}>
+      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"} transition-opacity duration-200 ${isLoading ? "opacity-50" : "opacity-100"}`}>
         <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
           {(isMobile || !onClose) && (
             <Button variant="ghost" size="icon" onClick={handleClose}>
@@ -494,7 +494,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
           </div>
         </div>
 
-        <div className="flex flex-col p-4 overflow-hidden flex-1 h-[calc(100vh-3.5rem)]">
+        <div className="flex flex-col flex-1 p-4 overflow-hidden">
           <div className="flex flex-col items-center space-y-4 flex-shrink-0">
             <div
               className={`relative group cursor-pointer rounded-full ${isDragging ? "ring-2 ring-primary" : ""}`}

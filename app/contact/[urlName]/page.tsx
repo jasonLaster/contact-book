@@ -11,7 +11,7 @@ export default async function ContactPage({ params }: { params: { urlName: strin
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)]">
+    <div className="flex flex-1">
       <ContactPane contact={contact} isMobile={true} />
     </div>
   )

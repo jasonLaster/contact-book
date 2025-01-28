@@ -4,13 +4,14 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 import { useDebounce } from "@/lib/hooks"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useTransition } from "react"
 
 export function SearchBar() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [value, setValue] = useState(searchParams.get("search") || "")
   const debouncedValue = useDebounce(value, 300)
+  const [isPending, startTransition] = useTransition()
 
   useEffect(() => {
     const params = new URLSearchParams(searchParams)
@@ -19,7 +20,9 @@ export function SearchBar() {
     } else {
       params.delete("search")
     }
-    router.push(`/?${params.toString()}`)
+    startTransition(() => {
+      router.replace(`/?${params.toString()}`, { scroll: false })
+    })
   }, [debouncedValue, router, searchParams])
 
   return (
@@ -30,7 +33,7 @@ export function SearchBar() {
         className="pl-10 pr-4 py-2 bg-muted rounded-full"
         placeholder="Search contacts..."
       />
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+      <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-opacity ${isPending ? 'opacity-50' : 'opacity-100'}`} />
     </div>
   )
 }

@@ -10,10 +10,10 @@ async function updateSchema() {
 
     // Create contacts table
     await sql`
-      CREATE TABLE contacts (
-        id VARCHAR(256) PRIMARY KEY,
-        name VARCHAR(256) NOT NULL,
-        email VARCHAR(256),
+      CREATE TABLE IF NOT EXISTS contacts (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT,
         notes TEXT,
         image_url TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -23,13 +23,12 @@ async function updateSchema() {
     // Create phone_numbers table
     await sql`
       CREATE TABLE IF NOT EXISTS phone_numbers (
-        id SERIAL PRIMARY KEY,
-        contact_id VARCHAR(256) NOT NULL,
-        number VARCHAR(256) NOT NULL,
-        label VARCHAR(50),
-        type VARCHAR(20) NOT NULL DEFAULT 'mobile',
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        contact_id TEXT NOT NULL,
+        number TEXT NOT NULL,
+        label TEXT NOT NULL,
         is_primary BOOLEAN DEFAULT FALSE,
-        FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+        FOREIGN KEY (contact_id) REFERENCES contacts(id)
       )
     `
 

@@ -17,6 +17,8 @@ type ListItem = {
 
 const ITEM_SIZE = 40 // Height in pixels for each item
 const HEADER_SIZE = 56 // Height in pixels for section headers
+const SCROLLBAR_WIDTH = 16 // Default browser scrollbar width
+const ALPHABET_WIDTH = 24 // Width of the alphabet navigation
 
 export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] }) {
   const router = useRouter()
@@ -150,46 +152,49 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
 
   const renderContactList = () => (
     <div className="relative flex-1">
-      <div ref={containerRef} className="h-[calc(100vh-200px)] lg:h-[calc(100vh-100px)] pr-8">
+      <div ref={containerRef} className="h-[calc(100vh-200px)] lg:h-[calc(100vh-100px)] pr-[40px] relative">
         {flattenedItems.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">No contacts found</div>
         ) : (
-          <VariableSizeList
-            ref={listRef}
-            height={containerHeight || 400}
-            width="100%"
-            itemCount={flattenedItems.length}
-            itemSize={getItemSize}
-            onScroll={({ scrollOffset }) => setScrollOffset(scrollOffset)}
-            estimatedItemSize={ITEM_SIZE}
-          >
-            {renderRow}
-          </VariableSizeList>
+          <>
+            <nav
+              className="absolute right-[16px] top-0 bottom-0 flex flex-col justify-center text-xs space-y-1 pl-2 pr-1 bg-background/80 backdrop-blur-sm z-30"
+              style={{ transform: `translateX(-${SCROLLBAR_WIDTH}px)` }}
+              aria-label="Alphabet navigation"
+            >
+              {Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZ").map((letter) => (
+                <button
+                  key={letter}
+                  className={`text-muted-foreground hover:text-foreground ${
+                    availableLetters.includes(letter) ? "font-bold" : ""
+                  }`}
+                  onClick={() => {
+                    const index = letterToIndex.get(letter)
+                    if (index !== undefined && listRef.current) {
+                      listRef.current.scrollToItem(index, "start")
+                    }
+                  }}
+                  disabled={!availableLetters.includes(letter)}
+                  aria-label={`Scroll to ${letter}`}
+                >
+                  {letter}
+                </button>
+              ))}
+            </nav>
+            <VariableSizeList
+              ref={listRef}
+              height={containerHeight || 400}
+              width="100%"
+              itemCount={flattenedItems.length}
+              itemSize={getItemSize}
+              onScroll={({ scrollOffset }) => setScrollOffset(scrollOffset)}
+              estimatedItemSize={ITEM_SIZE}
+            >
+              {renderRow}
+            </VariableSizeList>
+          </>
         )}
       </div>
-      <nav
-        className="absolute right-0 top-0 bottom-0 flex flex-col justify-center text-xs space-y-1 pl-2 pr-1 bg-background/80 backdrop-blur-sm z-30"
-        aria-label="Alphabet navigation"
-      >
-        {Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZ").map((letter) => (
-          <button
-            key={letter}
-            className={`text-muted-foreground hover:text-foreground ${
-              availableLetters.includes(letter) ? "font-bold" : ""
-            }`}
-            onClick={() => {
-              const index = letterToIndex.get(letter)
-              if (index !== undefined && listRef.current) {
-                listRef.current.scrollToItem(index, "start")
-              }
-            }}
-            disabled={!availableLetters.includes(letter)}
-            aria-label={`Scroll to ${letter}`}
-          >
-            {letter}
-          </button>
-        ))}
-      </nav>
     </div>
   )
 

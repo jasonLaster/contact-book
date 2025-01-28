@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Trash2, ArrowLeft, UserCircle2, Pencil, X, Upload, Loader2, Plus, GripVertical } from "lucide-react"
+import { Trash2, ArrowLeft, UserCircle2, Pencil, X, Upload, Loader2, Plus, GripVertical, Save } from "lucide-react"
 import { deleteContact, updateContact } from "@/lib/actions"
 import { formatPhoneNumber } from "@/lib/utils"
 import "@/styles/animations.css"
@@ -23,50 +23,159 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useRouter } from "next/navigation"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface ContactPaneProps {
   contact: (Contact & { phoneNumbers: PhoneNumber[]; urlName: string }) | null
   onClose?: () => void
   isMobile: boolean
+  isLoading?: boolean
 }
 
-export function ContactPane({ contact, onClose, isMobile }: ContactPaneProps) {
+type UpdatePhoneNumber = {
+  id?: number
+  number: string
+  label?: string
+  type: string
+  isPrimary?: boolean
+}
+
+type FormDataType = {
+  id: string
+  name: string
+  phoneNumbers: UpdatePhoneNumber[]
+  email: string | null
+  notes: string | null
+  imageUrl: string | null
+  urlName: string
+  createdAt?: Date
+}
+
+type ContactUpdateData = {
+  name: string
+  phoneNumbers: UpdatePhoneNumber[]
+  email?: string
+  notes?: string
+  imageUrl?: string
+}
+
+const convertPhoneNumber = (p: PhoneNumber): UpdatePhoneNumber => ({
+  id: p.id,
+  number: p.number,
+  label: p.label ?? undefined,
+  type: p.type,
+  isPrimary: p.isPrimary ?? false
+})
+
+const convertDbContactToFormData = (contact: Contact & { phoneNumbers: PhoneNumber[]; urlName: string }): FormDataType => {
+  const { id, name, email, notes, imageUrl, urlName, createdAt, phoneNumbers } = contact
+  return {
+    id,
+    name,
+    email,
+    notes,
+    imageUrl,
+    urlName,
+    createdAt,
+    phoneNumbers: phoneNumbers.map(convertPhoneNumber)
+  }
+}
+
+const createEmptyFormData = (): FormDataType => ({
+  id: "",
+  name: "",
+  phoneNumbers: [{ number: "", label: undefined, type: "mobile", isPrimary: false }],
+  email: null,
+  notes: null,
+  imageUrl: null,
+  urlName: "",
+})
+
+const convertFormDataToUpdate = (data: FormDataType): ContactUpdateData => {
+  const { name, phoneNumbers } = data
+  const updateData: ContactUpdateData = {
+    name,
+    phoneNumbers: phoneNumbers.map(p => ({
+      id: p.id,
+      number: p.number,
+      label: p.label,
+      type: p.type,
+      isPrimary: p.isPrimary
+    }))
+  }
+
+  if (data.email !== null) {
+    updateData.email = data.email
+  }
+  if (data.notes !== null) {
+    updateData.notes = data.notes
+  }
+  if (data.imageUrl !== null) {
+    updateData.imageUrl = data.imageUrl
+  }
+
+  return updateData
+}
+
+const convertDbContactToUpdateData = (contact: Contact & { phoneNumbers: PhoneNumber[]; urlName: string }): ContactUpdateData => {
+  const { name, phoneNumbers, email, notes, imageUrl } = contact
+  const updateData: ContactUpdateData = {
+    name,
+    phoneNumbers: phoneNumbers.map(p => ({
+      id: p.id,
+      number: p.number,
+      label: p.label ?? undefined,
+      type: p.type,
+      isPrimary: p.isPrimary ?? false
+    }))
+  }
+
+  if (email) {
+    updateData.email = email
+  }
+  if (notes) {
+    updateData.notes = notes
+  }
+  if (imageUrl) {
+    updateData.imageUrl = imageUrl
+  }
+
+  return updateData
+}
+
+const convertToUpdateData = (data: FormDataType | (Contact & { phoneNumbers: PhoneNumber[]; urlName: string })): ContactUpdateData => {
+  if ('urlName' in data && 'createdAt' in data) {
+    return convertDbContactToUpdateData(data as Contact & { phoneNumbers: PhoneNumber[]; urlName: string })
+  }
+  return convertFormDataToUpdate(data as FormDataType)
+}
+
+export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPaneProps) {
   const router = useRouter()
   const [isEditing, setIsEditing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isSavingNotes, setIsSavingNotes] = useState(false)
-  const [formData, setFormData] = useState(
-    contact || {
-      id: "",
-      name: "",
-      phoneNumbers: [],
-      email: "",
-      notes: "",
-      imageUrl: "",
-      urlName: "",
-    },
-  )
+  const [localNotes, setLocalNotes] = useState("")
+  const [formData, setFormData] = useState<FormDataType>(createEmptyFormData())
   const [isSaving, setIsSaving] = useState(false)
   const [showQuotaError, setShowQuotaError] = useState(false)
   const { toast } = useToast()
   const dragItem = useRef<number | null>(null)
   const dragOverItem = useRef<number | null>(null)
   const notesTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const previousContactRef = useRef<typeof contact>(null)
 
   useEffect(() => {
-    if (contact) {
-      console.log("Contact imageUrl:", contact.imageUrl)
-      setFormData({
-        ...contact,
-        imageUrl: contact.imageUrl || "",
-        phoneNumbers:
-          contact.phoneNumbers.length > 0
-            ? contact.phoneNumbers
-            : [{ number: "", label: "", type: "mobile", isPrimary: true }],
-      })
+    if (contact && !isLoading) {
+      if (contact.id !== previousContactRef.current?.id) {
+        const updatedFormData = convertDbContactToFormData(contact)
+        setFormData(updatedFormData)
+        setLocalNotes(contact.notes || "")
+        previousContactRef.current = contact
+      }
     }
-  }, [contact])
+  }, [contact, isLoading])
 
   const handleDelete = async () => {
     if (contact) {
@@ -255,7 +364,7 @@ export function ContactPane({ contact, onClose, isMobile }: ContactPaneProps) {
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newNotes = e.target.value
-    setFormData((prev) => ({ ...prev, notes: newNotes }))
+    setLocalNotes(newNotes)
 
     if (notesTimeoutRef.current) {
       clearTimeout(notesTimeoutRef.current)
@@ -263,32 +372,88 @@ export function ContactPane({ contact, onClose, isMobile }: ContactPaneProps) {
 
     notesTimeoutRef.current = setTimeout(() => {
       handleSaveNotes(newNotes)
-    }, 500)
+    }, 1000)
   }
 
   const handleSaveNotes = async (notes: string) => {
-    if (contact) {
-      setIsSavingNotes(true)
-      try {
-        await updateContact(contact.id, { ...formData, notes })
-      } catch (error) {
-        console.error("Error updating notes:", error)
-        toast({
-          title: "Error",
-          description: "Failed to update notes. Please try again.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsSavingNotes(false)
-      }
+    if (!contact || notes === formData.notes) return
+
+    setIsSavingNotes(true)
+    try {
+      const updateData = convertToUpdateData({
+        ...formData,
+        notes
+      })
+      await updateContact(contact.id, updateData)
+      setFormData(prev => ({ ...prev, notes }))
+    } catch (error) {
+      console.error("Error updating notes:", error)
+      setLocalNotes(formData.notes || "")
+      toast({
+        title: "Error saving notes",
+        description: "Your changes couldn't be saved. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingNotes(false)
     }
   }
 
   const handleNotesBlur = () => {
     if (notesTimeoutRef.current) {
       clearTimeout(notesTimeoutRef.current)
-      handleSaveNotes(formData.notes || "")
+      handleSaveNotes(localNotes)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className={`bg-background h-screen flex flex-col ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"}`}>
+        <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
+          {(isMobile || !onClose) && (
+            <Button variant="ghost" size="icon" disabled>
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+          )}
+          <div className="flex-1" />
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" disabled>
+              <Pencil className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" disabled>
+              <Trash2 className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-col p-4 overflow-hidden flex-1 h-[calc(100vh-3.5rem)]">
+          <div className="flex flex-col items-center space-y-4 flex-shrink-0">
+            <Skeleton className="w-24 h-24 rounded-full" />
+            <Skeleton className="h-8 w-48" />
+          </div>
+
+          <div className="mt-6 flex flex-col flex-1 min-h-0 overflow-auto">
+            <div className="space-y-2 flex-shrink-0">
+              <Label>Phone Numbers</Label>
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            </div>
+
+            <div className="space-y-2 flex-shrink-0 mt-4">
+              <Label>Email</Label>
+              <Skeleton className="h-10 w-full" />
+            </div>
+
+            <div className="space-y-2 flex flex-col flex-1 min-h-0 overflow-hidden mt-4">
+              <Label>Notes</Label>
+              <Skeleton className="flex-1" />
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!contact) {
@@ -302,8 +467,8 @@ export function ContactPane({ contact, onClose, isMobile }: ContactPaneProps) {
 
   return (
     <>
-      <div className={`bg-background h-full flex flex-col ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"}`}>
-        <div className="flex items-center justify-between h-14 px-4">
+      <div className={`bg-background h-screen flex flex-col ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"} transition-opacity duration-200 ${isLoading ? "opacity-50" : "opacity-100"}`}>
+        <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
           {(isMobile || !onClose) && (
             <Button variant="ghost" size="icon" onClick={handleClose}>
               <ArrowLeft className="h-6 w-6" />
@@ -329,8 +494,8 @@ export function ContactPane({ contact, onClose, isMobile }: ContactPaneProps) {
           </div>
         </div>
 
-        <div className="space-y-6 p-4 overflow-y-auto">
-          <div className="flex flex-col items-center space-y-4">
+        <div className="flex flex-col p-4 overflow-hidden flex-1 h-[calc(100vh-3.5rem)]">
+          <div className="flex flex-col items-center space-y-4 flex-shrink-0">
             <div
               className={`relative group cursor-pointer rounded-full ${isDragging ? "ring-2 ring-primary" : ""}`}
               onDragOver={handleDragOver}
@@ -370,8 +535,8 @@ export function ContactPane({ contact, onClose, isMobile }: ContactPaneProps) {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
+          <div className="mt-6 flex flex-col flex-1 min-h-0 overflow-auto">
+            <div className="space-y-2 flex-shrink-0">
               <Label>Phone Numbers</Label>
               <div className="space-y-2">
                 {formData.phoneNumbers.map((phone, index) => (
@@ -426,7 +591,7 @@ export function ContactPane({ contact, onClose, isMobile }: ContactPaneProps) {
               )}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 flex-shrink-0">
               <Label htmlFor="email">Email</Label>
               {isEditing ? (
                 <Input
@@ -440,23 +605,28 @@ export function ContactPane({ contact, onClose, isMobile }: ContactPaneProps) {
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <div className="relative">
+            <div className="space-y-2 flex flex-col flex-1 min-h-0 overflow-hidden">
+              <Label htmlFor="notes" className="flex-shrink-0">Notes</Label>
+              <div className="relative flex-1 flex flex-col min-h-0">
                 <Textarea
                   id="notes"
-                  value={formData.notes || ""}
+                  value={localNotes}
                   onChange={handleNotesChange}
                   onBlur={handleNotesBlur}
-                  className={`min-h-[100px] ${isSavingNotes ? "tron-loading" : ""}`}
                   placeholder="Add notes..."
+                  className="flex-1 resize-none overflow-auto"
                 />
+                {isSavingNotes && (
+                  <div className="absolute right-2 top-2 text-muted-foreground animate-pulse">
+                    <Save className="h-4 w-4" />
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
           {isEditing && (
-            <Button onClick={handleSubmit} className="w-full" disabled={isSaving}>
+            <Button onClick={handleSubmit} className="w-full mt-4 flex-shrink-0" disabled={isSaving}>
               {isSaving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

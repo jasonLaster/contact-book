@@ -44,9 +44,9 @@ type FormDataType = {
   id: string
   name: string
   phoneNumbers: UpdatePhoneNumber[]
-  email: string | null
-  notes: string | null
-  imageUrl: string | null
+  email?: string | null
+  notes?: string | null
+  imageUrl?: string | null
   urlName: string
   createdAt?: Date
 }
@@ -60,10 +60,10 @@ type ContactUpdateData = {
 }
 
 const convertPhoneNumber = (p: PhoneNumber): UpdatePhoneNumber => ({
-  id: p.id,
+  id: p.id ? Number(p.id) : undefined,
   number: p.number,
   label: p.label ?? undefined,
-  type: p.type,
+  type: "mobile", // Default to mobile since it's not in the DB
   isPrimary: p.isPrimary ?? false
 })
 
@@ -72,9 +72,9 @@ const convertDbContactToFormData = (contact: Contact & { phoneNumbers: PhoneNumb
   return {
     id,
     name,
-    email,
-    notes,
-    imageUrl,
+    email: email ?? null,
+    notes: notes ?? null,
+    imageUrl: imageUrl ?? null,
     urlName,
     createdAt,
     phoneNumbers: phoneNumbers.map(convertPhoneNumber)
@@ -122,10 +122,10 @@ const convertDbContactToUpdateData = (contact: Contact & { phoneNumbers: PhoneNu
   const updateData: ContactUpdateData = {
     name,
     phoneNumbers: phoneNumbers.map(p => ({
-      id: p.id,
+      id: p.id ? Number(p.id) : undefined,
       number: p.number,
       label: p.label ?? undefined,
-      type: p.type,
+      type: "mobile", // Default to mobile since it's not in the DB
       isPrimary: p.isPrimary ?? false
     }))
   }
@@ -210,7 +210,14 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
       setIsEditing(false)
 
       try {
-        await updateContact(contact.id, updatedFormData)
+        const updateData: ContactUpdateData = {
+          name: updatedFormData.name,
+          phoneNumbers: updatedFormData.phoneNumbers,
+          email: updatedFormData.email ?? undefined,
+          notes: updatedFormData.notes ?? undefined,
+          imageUrl: updatedFormData.imageUrl ?? undefined,
+        }
+        await updateContact(contact.id, updateData)
         toast({
           title: "Contact updated",
           description: "Your changes have been saved successfully.",
@@ -218,7 +225,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
       } catch (error: any) {
         console.error("Error updating contact:", error)
         // Revert changes on error
-        setFormData(contact)
+        setFormData(convertDbContactToFormData(contact))
         setIsEditing(true)
         if (error.message && error.message.includes("Data transfer quota exceeded")) {
           setShowQuotaError(true)
@@ -236,12 +243,14 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
   }
 
   const handlePhoneChange =
-    (index: number, field: keyof PhoneNumber) => (e: React.ChangeEvent<HTMLInputElement> | string) => {
+    (index: number, field: "number" | "label" | "type") => (e: React.ChangeEvent<HTMLInputElement> | string) => {
       const newPhoneNumbers = [...formData.phoneNumbers]
       if (field === "number" && typeof e !== "string") {
         newPhoneNumbers[index].number = formatPhoneNumber(e.target.value)
       } else if (field === "type" && typeof e === "string") {
         newPhoneNumbers[index].type = e
+      } else if (field === "label" && typeof e !== "string") {
+        newPhoneNumbers[index].label = e.target.value
       }
       setFormData((prev) => ({ ...prev, phoneNumbers: newPhoneNumbers }))
     }
@@ -335,8 +344,15 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
     if (contact) {
       setIsUploading(true)
       try {
-        const updatedContact = await updateContact(contact.id, formData, file)
-        setFormData((prev) => ({ ...prev, imageUrl: updatedContact.imageUrl }))
+        const updateData: ContactUpdateData = {
+          name: formData.name,
+          phoneNumbers: formData.phoneNumbers,
+          email: formData.email ?? undefined,
+          notes: formData.notes ?? undefined,
+          imageUrl: formData.imageUrl ?? undefined,
+        }
+        const updatedContact = await updateContact(contact.id, updateData, file)
+        setFormData(convertDbContactToFormData(updatedContact))
         toast({
           title: "Image uploaded",
           description: "Your contact's avatar has been updated.",
@@ -458,9 +474,20 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
   if (!contact) {
     return (
-      <div className="bg-background p-6 shadow-lg flex-1 flex flex-col items-center justify-center text-muted-foreground">
-        <UserCircle2 className="w-20 h-20 mb-4" />
-        <p className="text-lg">Select a contact to view details</p>
+      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"}`}>
+        <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
+          {isMobile && (
+            <Button variant="ghost" size="icon" disabled>
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+          )}
+          <div className="flex-1" />
+        </div>
+
+        <div className="flex flex-col flex-1 items-center justify-center p-4">
+          <UserCircle2 className="w-24 h-24 text-muted-foreground mb-4" />
+          <p className="text-lg text-muted-foreground">No Contact Selected</p>
+        </div>
       </div>
     )
   }
@@ -469,7 +496,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
     <>
       <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"} transition-opacity duration-200 ${isLoading ? "opacity-50" : "opacity-100"}`}>
         <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
-          {(isMobile || !onClose) && (
+          {isMobile && (
             <Button variant="ghost" size="icon" onClick={handleClose}>
               <ArrowLeft className="h-6 w-6" />
             </Button>
@@ -535,10 +562,10 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col flex-1 min-h-0 overflow-auto">
-            <div className="space-y-2 flex-shrink-0">
-              <Label>Phone Numbers</Label>
-              <div className="space-y-2">
+          <div className="mt-8 flex flex-col flex-1 min-h-0 overflow-auto space-y-8">
+            <div className="space-y-3 flex-shrink-0">
+              <Label className="text-sm text-muted-foreground font-medium">Phone Numbers</Label>
+              <div className="space-y-3">
                 {formData.phoneNumbers.map((phone, index) => (
                   <div
                     key={index}
@@ -551,7 +578,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
                   >
                     {isEditing && (
                       <div className="cursor-move">
-                        <GripVertical className="h-5 w-5 text-muted-foreground" />
+                        <GripVertical className="h-5 w-5 text-muted-foreground/50" />
                       </div>
                     )}
                     <Input
@@ -585,14 +612,14 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
                 ))}
               </div>
               {isEditing && (
-                <Button onClick={handleAddPhone} variant="outline" className="w-full">
+                <Button onClick={handleAddPhone} variant="outline" className="w-full mt-2">
                   <Plus className="h-4 w-4 mr-2" /> Add Phone Number
                 </Button>
               )}
             </div>
 
-            <div className="space-y-2 flex-shrink-0">
-              <Label htmlFor="email">Email</Label>
+            <div className="space-y-3 flex-shrink-0">
+              <Label htmlFor="email" className="text-sm text-muted-foreground font-medium">Email</Label>
               {isEditing ? (
                 <Input
                   id="email"
@@ -601,20 +628,20 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
                   onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                 />
               ) : (
-                <p className="text-muted-foreground">{formData.email || "Not provided"}</p>
+                <p className="text-muted-foreground/80 text-sm">{formData.email || "Not provided"}</p>
               )}
             </div>
 
-            <div className="space-y-2 flex flex-col flex-1 min-h-0 overflow-hidden">
-              <Label htmlFor="notes" className="flex-shrink-0">Notes</Label>
-              <div className="relative flex-1 flex flex-col min-h-0">
+            <div className="space-y-3 flex flex-col flex-1 min-h-0 overflow-hidden">
+              <Label htmlFor="notes" className="text-sm text-muted-foreground font-medium flex-shrink-0">Notes</Label>
+              <div className={`relative flex-1 flex flex-col min-h-0 ${isSavingNotes ? 'tron-loading' : ''}`}>
                 <Textarea
                   id="notes"
                   value={localNotes}
                   onChange={handleNotesChange}
                   onBlur={handleNotesBlur}
                   placeholder="Add notes..."
-                  className="flex-1 resize-none overflow-auto"
+                  className="flex-1 resize-none overflow-auto min-h-[120px] border-none focus-visible:ring-0"
                 />
                 {isSavingNotes && (
                   <div className="absolute right-2 top-2 text-muted-foreground animate-pulse">
@@ -626,7 +653,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
           </div>
 
           {isEditing && (
-            <Button onClick={handleSubmit} className="w-full mt-4 flex-shrink-0" disabled={isSaving}>
+            <Button onClick={handleSubmit} className="w-full mt-6 flex-shrink-0" disabled={isSaving}>
               {isSaving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

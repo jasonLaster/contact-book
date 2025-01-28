@@ -19,11 +19,9 @@ export default async function Page({
           <div className="flex-1 min-h-0">
             <ContactList contacts={contacts} />
           </div>
-          {selectedContact && (
-            <div className="w-1/3 hidden lg:block min-h-0">
-              <ContactPane contact={selectedContact} isMobile={false} />
-            </div>
-          )}
+          <div className="w-1/3 hidden lg:block min-h-0">
+            <ContactPane contact={selectedContact || null} isMobile={false} />
+          </div>
         </div>
       </div>
     </div>

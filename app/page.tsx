@@ -1,25 +1,40 @@
-import { getContacts } from "@/lib/actions"
+import { getContacts, getGroups } from "@/lib/actions"
 import { ContactList } from "@/components/contact-list"
-import { Header } from "@/components/header"
 import { ContactPane } from "@/components/contact-pane"
+import { GroupsSidebar } from "@/components/groups-sidebar"
+import { AddContactDialog } from "@/components/add-contact-dialog"
+import { Plus } from "lucide-react"
 
 export default async function Page({
   searchParams,
 }: {
-  searchParams: { search?: string; contact?: string }
+  searchParams: { search?: string; contact?: string; group?: string }
 }) {
-  const contacts = await getContacts(searchParams.search)
+  const [contacts, groups] = await Promise.all([
+    getContacts(searchParams.search, searchParams.group),
+    getGroups()
+  ])
   const selectedContact = contacts.find((c: any) => c.urlName === searchParams.contact)
 
   return (
     <div className="h-screen flex flex-col bg-background">
-      <div className="container mx-auto p-4 flex flex-col flex-1 min-h-0">
-        <Header className="flex-shrink-0" />
-        <div className="flex flex-1 gap-4 mt-6 min-h-0">
-          <div className="flex-1 min-h-0">
-            <ContactList contacts={contacts} />
+      <div className="flex flex-1 min-h-0">
+        <GroupsSidebar 
+          groups={groups} 
+          className="hidden lg:flex border-r"
+        />
+        <div className="flex-1 min-h-0">
+          <ContactList contacts={contacts} />
+        </div>
+        <div className="w-[400px] hidden lg:flex flex-col min-h-0 border-l">
+          <div className="p-2 border-b flex justify-end">
+            <AddContactDialog>
+              <button className="p-1.5 hover:bg-accent rounded-full">
+                <Plus className="w-5 h-5" />
+              </button>
+            </AddContactDialog>
           </div>
-          <div className="w-1/3 hidden lg:block min-h-0">
+          <div className="flex-1 min-h-0">
             <ContactPane contact={selectedContact || null} isMobile={false} />
           </div>
         </div>

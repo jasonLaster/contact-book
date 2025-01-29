@@ -152,65 +152,66 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
     return currentHeaderIndex >= 0 ? flattenedItems[currentHeaderIndex].letter : ""
   }
 
-  const renderRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const item = flattenedItems[index]
-    
-    if (item.type === "header") {
-      return (
-        <div style={style} className="px-4">
-          <div className="text-2xl font-semibold bg-background z-20 py-2">
-            {item.letter}
-          </div>
-        </div>
-      )
-    }
-
-    if (!item.contact) return null
-
-    return (
-      <div
-        style={style}
-        className={`px-4 py-2 hover:bg-accent transition-colors cursor-pointer ${
-          selectedContactUrlName === item.contact.urlName ? "bg-accent" : ""
-        }`}
-        onClick={() => {
-          if (item.contact) {
-            console.log("[ContactList] Selecting contact:", item.contact.name, item.contact.urlName)
-            handleContactSelect(item.contact)
-          }
-        }}
-      >
-        <div className="font-medium">{item.contact.name}</div>
-      </div>
-    )
-  }
-
   const renderContactList = () => (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-2">
+      <div className="border-b">
         <SearchBar />
       </div>
-      <div ref={containerRef} className="flex-1 min-h-0 relative overflow-hidden">
+      <div ref={containerRef} className="flex-1 min-h-0 relative">
         {flattenedItems.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">No contacts found</div>
         ) : (
           <>
-            <div className="pr-8">
-              <VariableSizeList
-                ref={listRef}
-                height={containerHeight || 400}
-                width="100%"
-                itemCount={flattenedItems.length}
-                itemSize={getItemSize}
-                onScroll={({ scrollOffset }) => setScrollOffset(scrollOffset)}
-                estimatedItemSize={ITEM_SIZE}
+            <div className="pr-8 overflow-auto">
+              <div className="relative">
+            <VariableSizeList
+              ref={listRef}
+              height={containerHeight || 400}
+              width="100%"
+              itemCount={flattenedItems.length}
+              itemSize={getItemSize}
+              onScroll={({ scrollOffset }) => setScrollOffset(scrollOffset)}
+              estimatedItemSize={ITEM_SIZE}
+              overscanCount={10}
                 className="scrollbar-thin scrollbar-thumb-accent scrollbar-track-transparent"
-              >
-                {renderRow}
-              </VariableSizeList>
+            >
+              {({ index, style }) => {
+                const item = flattenedItems[index]
+                
+                if (item.type === "header") {
+                  return (
+                        <div style={style} className="sticky top-0 z-10">
+                          <div className="text-2xl font-semibold bg-background/95 backdrop-blur-sm py-2 px-4">
+                        {item.letter}
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (!item.contact) return null
+
+                return (
+                  <div
+                    style={style}
+                    className={`px-4 py-2 hover:bg-accent transition-colors cursor-pointer ${
+                      selectedContactUrlName === item.contact.urlName ? "bg-accent" : ""
+                    }`}
+                    onClick={() => {
+                      if (item.contact) {
+                        console.log("[ContactList] Selecting contact:", item.contact.name, item.contact.urlName)
+                        handleContactSelect(item.contact)
+                      }
+                    }}
+                  >
+                    <div className="font-medium">{item.contact.name}</div>
+                  </div>
+                )
+              }}
+            </VariableSizeList>
+              </div>
             </div>
             <nav
-              className="absolute right-8 top-0 bottom-0 flex flex-col justify-center text-xs space-y-1 pl-2 pr-1 bg-background/80 backdrop-blur-sm z-30"
+              className="absolute right-0 top-0 bottom-0 flex flex-col justify-center text-xs space-y-1 pl-2 pr-1 bg-background/80 backdrop-blur-sm z-30"
               aria-label="Alphabet navigation"
             >
               {Array.from("ABCDEFGHIJKLMNOPQRSTUVWXYZ").map((letter) => (

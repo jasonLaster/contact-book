@@ -1,21 +1,22 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import type { Contact, PhoneNumber } from "@/lib/db/schema"
+import type { Contact, PhoneNumber, Group } from "@/lib/db/schema"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Trash2, ArrowLeft, UserCircle2, Pencil, X, Upload, Loader2, Plus, GripVertical, Save } from "lucide-react"
-import { deleteContact, updateContact } from "@/lib/actions"
+import { Trash2, ArrowLeft, UserCircle2, Pencil, X, Upload, Loader2, Plus, GripVertical, Save, Users } from "lucide-react"
+import { deleteContact, updateContact, addContactToGroup, removeContactFromGroup } from "@/lib/actions"
 import { formatPhoneNumber } from "@/lib/utils"
 import "@/styles/animations.css"
 import { useToast } from "@/components/ui/use-toast"
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -24,6 +25,17 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useRouter } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { EditContactForm } from "./edit-contact-form"
+import { DeleteContactDialog } from "./delete-contact-dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { useGroups } from "@/hooks/use-groups"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 interface ContactPaneProps {
   contact: (Contact & { phoneNumbers: PhoneNumber[]; urlName: string }) | null
@@ -32,122 +44,107 @@ interface ContactPaneProps {
   isLoading?: boolean
 }
 
-type UpdatePhoneNumber = {
-  id?: number
+interface FormPhoneNumber {
+  id?: string
   number: string
-  label?: string
-  type: string
-  isPrimary?: boolean
+  label: string
+  isPrimary: boolean
 }
 
-type FormDataType = {
-  id: string
+interface FormData {
+  id?: string
   name: string
-  phoneNumbers: UpdatePhoneNumber[]
-  email?: string | null
-  notes?: string | null
-  imageUrl?: string | null
+  email: string | undefined
+  notes: string | undefined
+  phoneNumbers: FormPhoneNumber[]
+  imageUrl: string | undefined
   urlName: string
-  createdAt?: Date
 }
 
-type ContactUpdateData = {
+interface ContactUpdateData {
   name: string
-  phoneNumbers: UpdatePhoneNumber[]
+  phoneNumbers: {
+    id?: string
+    number: string
+    label: string
+    isPrimary: boolean
+  }[]
   email?: string
   notes?: string
   imageUrl?: string
 }
 
-const convertPhoneNumber = (p: PhoneNumber): UpdatePhoneNumber => ({
-  id: p.id ? Number(p.id) : undefined,
+interface GroupWithContacts extends Group {
+  contacts?: { contactId: string }[]
+  contactCount: number
+}
+
+const convertPhoneNumber = (p: PhoneNumber): FormPhoneNumber => ({
+  id: p.id,
   number: p.number,
-  label: p.label ?? undefined,
-  type: "mobile", // Default to mobile since it's not in the DB
-  isPrimary: p.isPrimary ?? false
+  label: p.label,
+  isPrimary: p.isPrimary || false
 })
 
-const convertDbContactToFormData = (contact: Contact & { phoneNumbers: PhoneNumber[]; urlName: string }): FormDataType => {
-  const { id, name, email, notes, imageUrl, urlName, createdAt, phoneNumbers } = contact
+const convertDbContactToFormData = (contact: Contact & { phoneNumbers: PhoneNumber[]; urlName: string }): FormData => {
+  const { id, name, email, notes, imageUrl, phoneNumbers, urlName } = contact
   return {
     id,
     name,
-    email: email ?? null,
-    notes: notes ?? null,
-    imageUrl: imageUrl ?? null,
-    urlName,
-    createdAt,
-    phoneNumbers: phoneNumbers.map(convertPhoneNumber)
+    email: email || undefined,
+    notes: notes || undefined,
+    phoneNumbers: phoneNumbers.map(convertPhoneNumber),
+    imageUrl: imageUrl || undefined,
+    urlName
   }
 }
 
-const createEmptyFormData = (): FormDataType => ({
-  id: "",
+const createEmptyFormData = (): FormData => ({
   name: "",
-  phoneNumbers: [{ number: "", label: undefined, type: "mobile", isPrimary: false }],
-  email: null,
-  notes: null,
-  imageUrl: null,
-  urlName: "",
+  email: undefined,
+  notes: undefined,
+  phoneNumbers: [{ number: "", label: "", isPrimary: false }],
+  imageUrl: undefined,
+  urlName: ""
 })
 
-const convertFormDataToUpdate = (data: FormDataType): ContactUpdateData => {
-  const { name, phoneNumbers } = data
-  const updateData: ContactUpdateData = {
+const convertFormDataToUpdate = (data: FormData): ContactUpdateData => {
+  const { name, phoneNumbers, email, notes, imageUrl } = data
+  return {
     name,
     phoneNumbers: phoneNumbers.map(p => ({
       id: p.id,
       number: p.number,
       label: p.label,
-      type: p.type,
       isPrimary: p.isPrimary
-    }))
+    })),
+    email,
+    notes,
+    imageUrl
   }
-
-  if (data.email !== null) {
-    updateData.email = data.email
-  }
-  if (data.notes !== null) {
-    updateData.notes = data.notes
-  }
-  if (data.imageUrl !== null) {
-    updateData.imageUrl = data.imageUrl
-  }
-
-  return updateData
 }
 
 const convertDbContactToUpdateData = (contact: Contact & { phoneNumbers: PhoneNumber[]; urlName: string }): ContactUpdateData => {
   const { name, phoneNumbers, email, notes, imageUrl } = contact
-  const updateData: ContactUpdateData = {
+  return {
     name,
     phoneNumbers: phoneNumbers.map(p => ({
-      id: p.id ? Number(p.id) : undefined,
+      id: p.id,
       number: p.number,
-      label: p.label ?? undefined,
-      type: "mobile", // Default to mobile since it's not in the DB
-      isPrimary: p.isPrimary ?? false
-    }))
+      label: p.label,
+      isPrimary: p.isPrimary || false
+    })),
+    email,
+    notes,
+    imageUrl
   }
-
-  if (email) {
-    updateData.email = email
-  }
-  if (notes) {
-    updateData.notes = notes
-  }
-  if (imageUrl) {
-    updateData.imageUrl = imageUrl
-  }
-
-  return updateData
 }
 
-const convertToUpdateData = (data: FormDataType | (Contact & { phoneNumbers: PhoneNumber[]; urlName: string })): ContactUpdateData => {
+const convertToUpdateData = (data: FormData | (Contact & { phoneNumbers: PhoneNumber[]; urlName: string })): ContactUpdateData => {
   if ('urlName' in data && 'createdAt' in data) {
     return convertDbContactToUpdateData(data as Contact & { phoneNumbers: PhoneNumber[]; urlName: string })
   }
-  return convertFormDataToUpdate(data as FormDataType)
+  return convertFormDataToUpdate(data as FormData)
 }
 
 export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPaneProps) {
@@ -157,7 +154,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
   const [isUploading, setIsUploading] = useState(false)
   const [isSavingNotes, setIsSavingNotes] = useState(false)
   const [localNotes, setLocalNotes] = useState("")
-  const [formData, setFormData] = useState<FormDataType>(createEmptyFormData())
+  const [formData, setFormData] = useState<FormData>(createEmptyFormData())
   const [isSaving, setIsSaving] = useState(false)
   const [showQuotaError, setShowQuotaError] = useState(false)
   const { toast } = useToast()
@@ -165,6 +162,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
   const dragOverItem = useRef<number | null>(null)
   const notesTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const previousContactRef = useRef<typeof contact>(null)
+  const { groups, refreshGroups } = useGroups()
 
   useEffect(() => {
     if (contact && !isLoading) {
@@ -197,69 +195,81 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (contact) {
-      setIsSaving(true)
-      const updatedFormData = {
-        ...formData,
-        phoneNumbers: formData.phoneNumbers.filter((phone) => phone.number.trim() !== ""),
-      }
-      // Optimistically update the UI
-      setFormData(updatedFormData)
-      setIsEditing(false)
+    setIsSaving(true)
 
-      try {
-        const updateData: ContactUpdateData = {
-          name: updatedFormData.name,
-          phoneNumbers: updatedFormData.phoneNumbers,
-          email: updatedFormData.email ?? undefined,
-          notes: updatedFormData.notes ?? undefined,
-          imageUrl: updatedFormData.imageUrl ?? undefined,
-        }
-        await updateContact(contact.id, updateData)
-        toast({
-          title: "Contact updated",
-          description: "Your changes have been saved successfully.",
-        })
-      } catch (error: any) {
-        console.error("Error updating contact:", error)
-        // Revert changes on error
-        setFormData(convertDbContactToFormData(contact))
-        setIsEditing(true)
-        if (error.message && error.message.includes("Data transfer quota exceeded")) {
-          setShowQuotaError(true)
-        } else {
-          toast({
-            title: "Error",
-            description: "Failed to update contact. Please try again.",
-            variant: "destructive",
-          })
-        }
-      } finally {
-        setIsSaving(false)
+    try {
+      const formDataToSubmit = {
+        name: formData.name,
+        phoneNumbers: formData.phoneNumbers.map(p => ({
+          id: p.id,
+          number: p.number,
+          label: p.label,
+          isPrimary: p.isPrimary
+        })),
+        email: formData.email,
+        notes: formData.notes,
+        imageUrl: formData.imageUrl
       }
+
+      await updateContact(formData.id!, formDataToSubmit)
+      setIsEditing(false)
+      toast({ title: "Contact updated" })
+    } catch (error) {
+      console.error("Error updating contact:", error)
+      toast({
+        title: "Error updating contact",
+        description: error instanceof Error ? error.message : "An error occurred",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleSave = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    const form = e.currentTarget.closest('form')
+    if (form) {
+      const event = new Event('submit', { bubbles: true, cancelable: true })
+      form.dispatchEvent(event)
     }
   }
 
   const handlePhoneChange =
-    (index: number, field: "number" | "label" | "type") => (e: React.ChangeEvent<HTMLInputElement> | string) => {
+    (index: number, field: "number" | "label" | "isPrimary") =>
+    (e: React.ChangeEvent<HTMLInputElement> | string | boolean) => {
       const newPhoneNumbers = [...formData.phoneNumbers]
-      if (field === "number" && typeof e !== "string") {
+      if (field === "number" && !isPrimitive(e) && "target" in e) {
         newPhoneNumbers[index].number = formatPhoneNumber(e.target.value)
-      } else if (field === "type" && typeof e === "string") {
-        newPhoneNumbers[index].type = e
-      } else if (field === "label" && typeof e !== "string") {
+      } else if (field === "isPrimary" && typeof e === "boolean") {
+        newPhoneNumbers[index].isPrimary = e
+      } else if (field === "label" && !isPrimitive(e) && "target" in e) {
         newPhoneNumbers[index].label = e.target.value
       }
-      setFormData((prev) => ({ ...prev, phoneNumbers: newPhoneNumbers }))
+      setFormData((prev) => ({
+        ...prev,
+        phoneNumbers: newPhoneNumbers,
+      }))
     }
+
+  // Helper function to check if a value is primitive
+  function isPrimitive(value: any): value is string | number | boolean | null | undefined {
+    return (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean" ||
+      value === null ||
+      value === undefined
+    )
+  }
 
   const handleAddPhone = () => {
     if (formData.phoneNumbers.every((phone) => phone.number.trim() !== "")) {
       setFormData((prev) => ({
         ...prev,
-        phoneNumbers: [...prev.phoneNumbers, { number: "", label: "", type: "mobile", isPrimary: false }],
+        phoneNumbers: [...prev.phoneNumbers, { number: "", label: "", isPrimary: false }],
       }))
     } else {
       toast({
@@ -347,9 +357,9 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
         const updateData: ContactUpdateData = {
           name: formData.name,
           phoneNumbers: formData.phoneNumbers,
-          email: formData.email ?? undefined,
-          notes: formData.notes ?? undefined,
-          imageUrl: formData.imageUrl ?? undefined,
+          email: formData.email,
+          notes: formData.notes,
+          imageUrl: formData.imageUrl
         }
         const updatedContact = await updateContact(contact.id, updateData, file)
         setFormData(convertDbContactToFormData(updatedContact))
@@ -379,52 +389,69 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
   }
 
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newNotes = e.target.value
-    setLocalNotes(newNotes)
-
+    const newValue = e.target.value;
+    setFormData(prev => ({ ...prev, notes: newValue || undefined }));
+    
     if (notesTimeoutRef.current) {
-      clearTimeout(notesTimeoutRef.current)
+      clearTimeout(notesTimeoutRef.current);
     }
-
+    
     notesTimeoutRef.current = setTimeout(() => {
-      handleSaveNotes(newNotes)
-    }, 1000)
+      handleSaveNotes(newValue);
+    }, 1000);
   }
 
   const handleSaveNotes = async (notes: string) => {
-    if (!contact || notes === formData.notes) return
+    if (!contact) return;
 
-    setIsSavingNotes(true)
+    setIsSavingNotes(true);
     try {
       const updateData = convertToUpdateData({
         ...formData,
-        notes
-      })
-      await updateContact(contact.id, updateData)
-      setFormData(prev => ({ ...prev, notes }))
+        notes: notes.trim() === "" ? undefined : notes
+      });
+      await updateContact(contact.id, updateData);
+      setFormData(prev => ({ ...prev, notes: notes.trim() === "" ? undefined : notes }));
     } catch (error) {
-      console.error("Error updating notes:", error)
-      setLocalNotes(formData.notes || "")
+      console.error("Error updating notes:", error);
       toast({
         title: "Error saving notes",
         description: "Your changes couldn't be saved. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSavingNotes(false)
+      setIsSavingNotes(false);
     }
   }
 
-  const handleNotesBlur = () => {
-    if (notesTimeoutRef.current) {
-      clearTimeout(notesTimeoutRef.current)
-      handleSaveNotes(localNotes)
+  const handleGroupChange = async (groupId: string, checked: boolean) => {
+    if (!contact) return
+    
+    try {
+      if (checked) {
+        await addContactToGroup(contact.id, groupId)
+      } else {
+        await removeContactFromGroup(contact.id, groupId)
+      }
+      refreshGroups()
+    } catch (error) {
+      console.error("Error updating contact groups:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update contact groups. Please try again.",
+        variant: "destructive"
+      })
     }
+  }
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.trim() === "" ? undefined : e.target.value
+    setFormData(prev => ({ ...prev, email: value }))
   }
 
   if (isLoading) {
     return (
-      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"}`}>
+      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : ""}`}>
         <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
           {(isMobile || !onClose) && (
             <Button variant="ghost" size="icon" disabled>
@@ -474,7 +501,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
   if (!contact) {
     return (
-      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"}`}>
+      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : ""}`}>
         <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
           {isMobile && (
             <Button variant="ghost" size="icon" disabled>
@@ -494,7 +521,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
   return (
     <>
-      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : "p-6 shadow-lg"} transition-opacity duration-200 ${isLoading ? "opacity-50" : "opacity-100"}`}>
+      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : ""} transition-opacity duration-200 ${isLoading ? "opacity-50" : "opacity-100"}`}>
         <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
           {isMobile && (
             <Button variant="ghost" size="icon" onClick={handleClose}>
@@ -503,15 +530,39 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
           )}
           <div className="flex-1" />
           <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Users className="h-5 w-5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-60 p-2" align="end">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Groups</h4>
+                  <div className="space-y-2">
+                    {groups?.map((group: GroupWithContacts) => (
+                      <div key={group.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`group-${group.id}`}
+                          checked={group.contacts?.some((c: { contactId: string }) => c.contactId === contact?.id)}
+                          onCheckedChange={(checked) => handleGroupChange(group.id, checked as boolean)}
+                        />
+                        <label
+                          htmlFor={`group-${group.id}`}
+                          className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {group.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => {
-                if (isEditing) {
-                  setFormData(contact)
-                }
-                setIsEditing(!isEditing)
-              }}
+              onClick={() => setIsEditing(!isEditing)}
             >
               {isEditing ? <X className="h-5 w-5" /> : <Pencil className="h-5 w-5" />}
             </Button>
@@ -589,19 +640,17 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
                       className="flex-grow"
                     />
                     {isEditing ? (
-                      <Select value={phone.type} onValueChange={(value) => handlePhoneChange(index, "type")(value)}>
+                      <Select value={phone.isPrimary ? "primary" : "secondary"} onValueChange={(value) => handlePhoneChange(index, "isPrimary")(value === "primary")}>
                         <SelectTrigger className="w-[120px]">
                           <SelectValue placeholder="Type" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="mobile">Mobile</SelectItem>
-                          <SelectItem value="home">Home</SelectItem>
-                          <SelectItem value="work">Work</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="primary">Primary</SelectItem>
+                          <SelectItem value="secondary">Secondary</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (
-                      <span className="w-[120px] text-sm text-muted-foreground">{phone.type}</span>
+                      <span className="w-[120px] text-sm text-muted-foreground">{phone.isPrimary ? "Primary" : "Secondary"}</span>
                     )}
                     {isEditing && index > 0 && (
                       <Button variant="ghost" size="icon" onClick={() => handleRemovePhone(index)}>
@@ -625,7 +674,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
                   id="email"
                   type="email"
                   value={formData.email || ""}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+                  onChange={handleEmailChange}
                 />
               ) : (
                 <p className="text-muted-foreground/80 text-sm">{formData.email || "Not provided"}</p>
@@ -634,14 +683,13 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
             <div className="space-y-3 flex flex-col flex-1 min-h-0 overflow-hidden">
               <Label htmlFor="notes" className="text-sm text-muted-foreground font-medium flex-shrink-0">Notes</Label>
-              <div className={`relative flex-1 flex flex-col min-h-0 ${isSavingNotes ? 'tron-loading' : ''}`}>
+              <div className={`relative flex-1 flex flex-col min-h-0 ${isSavingNotes ? 'snake-tron' : ''}`}>
                 <Textarea
                   id="notes"
-                  value={localNotes}
+                  value={formData.notes || ""}
                   onChange={handleNotesChange}
-                  onBlur={handleNotesBlur}
                   placeholder="Add notes..."
-                  className="flex-1 resize-none overflow-auto min-h-[120px] border-none focus-visible:ring-0"
+                  className="flex-1 resize-none overflow-auto min-h-[120px]"
                 />
                 {isSavingNotes && (
                   <div className="absolute right-2 top-2 text-muted-foreground animate-pulse">
@@ -651,19 +699,6 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
               </div>
             </div>
           </div>
-
-          {isEditing && (
-            <Button onClick={handleSubmit} className="w-full mt-6 flex-shrink-0" disabled={isSaving}>
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save Changes"
-              )}
-            </Button>
-          )}
         </div>
       </div>
       <AlertDialog open={showQuotaError} onOpenChange={setShowQuotaError}>

@@ -11,6 +11,24 @@ export const contacts = pgTable("contacts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
+export const groups = pgTable("groups", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").default("custom").notNull(), // can be 'system' or 'custom'
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
+export const contactGroups = pgTable("contact_groups", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  contactId: text("contact_id")
+    .notNull()
+    .references(() => contacts.id),
+  groupId: uuid("group_id")
+    .notNull()
+    .references(() => groups.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
 export const phoneNumbers = pgTable("phone_numbers", {
   id: uuid("id").defaultRandom().primaryKey(),
   contactId: text("contact_id")
@@ -25,11 +43,19 @@ export type Contact = typeof contacts.$inferSelect
 export type NewContact = typeof contacts.$inferInsert
 export type PhoneNumber = typeof phoneNumbers.$inferSelect
 export type NewPhoneNumber = typeof phoneNumbers.$inferInsert
+export type Group = typeof groups.$inferSelect
+export type NewGroup = typeof groups.$inferInsert
+export type ContactGroup = typeof contactGroups.$inferSelect
+export type NewContactGroup = typeof contactGroups.$inferInsert
 
 export const insertContactSchema = createInsertSchema(contacts)
 export const selectContactSchema = createSelectSchema(contacts)
 export const insertPhoneNumberSchema = createInsertSchema(phoneNumbers)
 export const selectPhoneNumberSchema = createSelectSchema(phoneNumbers)
+export const insertGroupSchema = createInsertSchema(groups)
+export const selectGroupSchema = createSelectSchema(groups)
+export const insertContactGroupSchema = createInsertSchema(contactGroups)
+export const selectContactGroupSchema = createSelectSchema(contactGroups)
 
 export { db }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { ChevronDown, ChevronRight, Plus, Star, Users, Pencil, Smile } from "lucide-react"
+import { Plus, Star, Users, Pencil, Smile, PanelLeftClose, PanelLeft, BookOpen } from "lucide-react"
 import { ScrollArea } from "./ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
@@ -15,6 +15,7 @@ import { useToast } from "./ui/use-toast"
 import EmojiPicker, { Theme } from "emoji-picker-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog"
 import { Label } from "./ui/label"
+import { useSidebar } from "@/lib/contexts/sidebar-context"
 
 interface GroupsSidebarProps {
   groups: (Group & { contactCount: number })[]
@@ -24,14 +25,14 @@ interface GroupsSidebarProps {
 export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [isExpanded, setIsExpanded] = useState(true)
+  const { isCollapsed, setIsCollapsed } = useSidebar()
   const [editingGroup, setEditingGroup] = useState<string | null>(null)
   const [editedName, setEditedName] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedEmoji, setSelectedEmoji] = useState("")
-  const systemGroups = groups.filter(g => g.type === 'system')
+  const favorites = groups.filter(g => g.type === 'system' && g.name === 'Favorites')
   const customGroups = groups.filter(g => g.type === 'custom')
   const selectedGroupId = searchParams.get('group')
   const { toast } = useToast()
@@ -91,94 +92,92 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
   }
 
   return (
-    <div className={cn("w-60 flex flex-col", className)}>
-      <div className="p-2 flex items-center justify-between border-b">
+    <div className={cn(
+      "flex flex-col transition-all duration-300",
+      isCollapsed ? "w-0 overflow-hidden" : "w-60",
+      className
+    )}>
+      <div className="h-14 px-4 flex items-center justify-between border-b">
+        <div className="flex items-center gap-3">
+          <BookOpen className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Contacts</span>
+        </div>
         <button 
-          onClick={() => setIsExpanded(!isExpanded)} 
-          className="flex items-center gap-2 text-sm font-medium"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent"
         >
-          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-          Groups
+          {isCollapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
         </button>
       </div>
       
-      {isExpanded && (
-        <ScrollArea className="flex-1">
-          <div className="p-2 space-y-4">
-            {/* All Contacts */}
-            <div className="space-y-1">
-              <button
-                onClick={() => handleGroupSelect(null)}
-                className={cn(
-                  "w-full flex items-center gap-2 px-2 py-1 text-sm rounded-md hover:bg-accent",
-                  !selectedGroupId && "bg-accent"
-                )}
-              >
-                <Users className="w-4 h-4" />
-                All Contacts
-              </button>
+      <ScrollArea className="flex-1">
+        <div className="p-4 space-y-1">
+          {/* All Contacts */}
+          <button
+            onClick={() => handleGroupSelect(null)}
+            className={cn(
+              "w-full flex items-center gap-3 px-2 py-1.5 text-sm rounded-md hover:bg-accent",
+              !selectedGroupId && "bg-accent"
+            )}
+          >
+            <div className="w-4 flex items-center">
+              <Users className="w-4 h-4 text-muted-foreground" />
             </div>
+            <span>All Contacts</span>
+          </button>
 
-            {/* System Groups */}
-            {systemGroups.length > 0 && (
-              <div className="space-y-1">
-                <div className="text-xs font-medium text-muted-foreground px-2">System</div>
-                {systemGroups.map((group) => (
-                  <button
-                    key={group.id}
-                    onClick={() => handleGroupSelect(group.id)}
-                    className={cn(
-                      "w-full flex items-center justify-between gap-2 px-2 py-1 text-sm rounded-md hover:bg-accent group",
-                      selectedGroupId === group.id && "bg-accent"
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Star className="w-4 h-4" />
-                      <span>{group.name}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{group.contactCount}</span>
-                  </button>
-                ))}
+          {/* Favorites */}
+          {favorites.map((group) => (
+            <button
+              key={group.id}
+              onClick={() => handleGroupSelect(group.id)}
+              className={cn(
+                "w-full flex items-center justify-between gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent group",
+                selectedGroupId === group.id && "bg-accent"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-4 flex items-center">
+                  <Star className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <span>{group.name}</span>
               </div>
-            )}
+              <span className="text-xs text-muted-foreground">{group.contactCount}</span>
+            </button>
+          ))}
 
-            {/* Custom Groups */}
-            {customGroups.length > 0 && (
-              <div className="space-y-1">
-                <div className="text-xs font-medium text-muted-foreground px-2">Custom</div>
-                {customGroups.map((group) => (
-                  <button
-                    key={group.id}
-                    onClick={() => handleGroupSelect(group.id)}
-                    className={cn(
-                      "w-full flex items-center justify-between gap-2 px-2 py-1 text-sm rounded-md hover:bg-accent group",
-                      selectedGroupId === group.id && "bg-accent"
-                    )}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="truncate">{group.name}</span>
-                    </div>
-                    <div className="flex items-center gap-1 relative">
-                      <span className="text-xs text-muted-foreground">{group.contactCount}</span>
-                      {group.type === 'custom' && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleEditGroup(group)
-                          }}
-                          className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:bg-background bg-popover rounded-sm z-10 shadow-sm"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  </button>
-                ))}
+          {/* Custom Groups */}
+          {customGroups.map((group) => (
+            <button
+              key={group.id}
+              onClick={() => handleGroupSelect(group.id)}
+              className={cn(
+                "w-full flex items-center justify-between gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent group",
+                selectedGroupId === group.id && "bg-accent"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-4 flex items-center">
+                  {group.name.match(/^(\p{Extended_Pictographic})/u)?.[1] || <div className="w-4" />}
+                </div>
+                <span className="truncate">{group.name.replace(/^\p{Extended_Pictographic}/u, '').trim()}</span>
               </div>
-            )}
-          </div>
-        </ScrollArea>
-      )}
+              <div className="flex items-center gap-1 relative">
+                <span className="text-xs text-muted-foreground">{group.contactCount}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleEditGroup(group)
+                  }}
+                  className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:bg-background bg-popover rounded-sm z-10 shadow-sm"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+              </div>
+            </button>
+          ))}
+        </div>
+      </ScrollArea>
 
       <div className="p-2 border-t">
         <AddGroupDialog>

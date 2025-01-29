@@ -457,7 +457,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
   if (isLoading) {
     return (
       <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : ""}`}>
-        <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
+        <div className="h-[56px] px-4 flex items-center justify-between">
           {(isMobile || !onClose) && (
             <Button variant="ghost" size="icon" disabled>
               <ArrowLeft className="h-6 w-6" />
@@ -507,7 +507,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
   if (!contact) {
     return (
       <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : ""}`}>
-        <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
+        <div className="h-[56px] px-4 flex items-center justify-between">
           {isMobile && (
             <Button variant="ghost" size="icon" disabled>
               <ArrowLeft className="h-6 w-6" />
@@ -527,7 +527,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
   return (
     <>
       <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : ""} transition-opacity duration-200 ${isLoading ? "opacity-50" : "opacity-100"}`}>
-        <div className="flex items-center justify-between h-14 px-4 flex-shrink-0">
+        <div className="h-[56px] px-4 flex items-center justify-between">
           {isMobile && (
             <Button variant="ghost" size="icon" onClick={handleClose}>
               <ArrowLeft className="h-6 w-6" />

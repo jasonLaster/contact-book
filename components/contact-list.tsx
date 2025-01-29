@@ -154,7 +154,7 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
 
   const renderContactList = () => (
     <div className="flex flex-col h-full">
-      <div className="border-b">
+      <div className="h-14 border-b">
         <SearchBar />
       </div>
       <div ref={containerRef} className="flex-1 min-h-0 relative">

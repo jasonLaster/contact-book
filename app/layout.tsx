@@ -1,9 +1,10 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { SidebarProvider } from '@/lib/contexts/sidebar-context'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Contacts',
+  description: 'A modern contact management app',
 }
 
 export default function RootLayout({
@@ -13,7 +14,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SidebarProvider>
+          {children}
+        </SidebarProvider>
+      </body>
     </html>
   )
 }

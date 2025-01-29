@@ -176,10 +176,28 @@ In addition, there are many smaller "ui/" components that are either:
 
 ### 2.8 Groups Sidebar
 
-- Collapsible/expandable on the left.  
-- Lists both system and custom groups.  
-- Supports editing a custom group's name or emoji prefix.  
-- "Add Group" opens a dialog to create a new group.
+- Collapsible sidebar that smoothly transitions to width 0 when collapsed
+- When collapsed, an expand button appears to the left of the search bar for easy access
+- Header shows "Contacts" with a book icon for consistent visual hierarchy
+- All headers have consistent height (56px):
+  - Sidebar header has bottom border
+  - Search bar header has bottom border
+  - Contact pane header has no border
+- Icons and labels follow consistent spacing and alignment:
+  - Icons use muted foreground color
+  - All icons (including emoji prefixes) are contained in fixed-width (16px) containers
+  - 12px gap between icons and labels
+  - 16px horizontal padding in headers
+  - All text labels align vertically regardless of icon presence
+  - Consistent vertical alignment across all components
+- Lists contacts and groups in a flat list with consistent spacing:
+  1. "All Contacts" at the top (with users icon)
+  2. Favorites (if any exist, with star icon)
+  3. Custom groups (with optional emoji prefixes)
+- Each item has the same padding and spacing for visual consistency
+- Supports editing custom group's name or emoji prefix
+- "Add Group" button at the bottom opens a dialog to create a new group
+- Uses a shared context (`SidebarContext`) to manage collapse state across components
 
 ### 2.9 Error Handling & Notifications
 

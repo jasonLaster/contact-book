@@ -27,7 +27,7 @@ export default async function Page({
           <ContactList contacts={contacts} />
         </div>
         <div className="w-[400px] hidden lg:flex flex-col min-h-0 border-l">
-          <div className="p-2 border-b flex justify-end">
+          <div className="h-[56px] px-4 flex items-center justify-end border-b">
             <AddContactDialog>
               <button className="p-1.5 hover:bg-accent rounded-full">
                 <Plus className="w-5 h-5" />

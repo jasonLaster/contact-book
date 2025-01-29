@@ -179,7 +179,9 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
     if (contact) {
       try {
         await deleteContact(contact.id)
-        router.push("/")
+        const searchParams = new URLSearchParams(window.location.search)
+        const currentSearch = searchParams.get('search')
+        router.push(currentSearch ? `/?search=${currentSearch}` : '/')
         toast({
           title: "Contact deleted",
           description: `${contact.name} has been removed from your contacts.`,

@@ -1,4 +1,4 @@
-import { text, timestamp, pgTable, uuid, boolean } from "drizzle-orm/pg-core"
+import { text, timestamp, pgTable, uuid, boolean, integer } from "drizzle-orm/pg-core"
 import { createInsertSchema, createSelectSchema } from "drizzle-zod"
 import { db } from "./index"
 
@@ -12,10 +12,11 @@ export const contacts = pgTable("contacts", {
 })
 
 export const groups = pgTable("groups", {
-  id: uuid("id").defaultRandom().primaryKey(),
+  id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  type: text("type").default("custom").notNull(), // can be 'system' or 'custom'
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  type: text("type", { enum: ['system', 'custom'] }).notNull().default('custom'),
+  position: integer('position').notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 })
 
 export const contactGroups = pgTable("contact_groups", {

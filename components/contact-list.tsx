@@ -7,6 +7,7 @@ import { VariableSizeList } from "react-window"
 import { ContactPane } from "./contact-pane"
 import { SearchBar } from "./search-bar"
 
+
 type ContactWithPhoneNumbers = Contact & { phoneNumbers: PhoneNumber[]; urlName: string }
 
 type ListItem = {
@@ -21,7 +22,7 @@ const HEADER_SIZE = 56 // Height in pixels for section headers
 const SCROLLBAR_WIDTH = 16 // Default browser scrollbar width
 const ALPHABET_WIDTH = 24 // Width of the alphabet navigation
 
-export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] }) {
+export function ContactList({ contacts, hideSearchBar = false }: { contacts: ContactWithPhoneNumbers[], hideSearchBar?: boolean }) {
   const router = useRouter()
   const [isMobile, setIsMobile] = useState(false)
   const listRef = useRef<VariableSizeList>(null)
@@ -125,10 +126,22 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
   const selectedContactFromUrl = contacts.find((c) => c.urlName === selectedContactUrlName)
 
   const handleContactSelect = (contact: ContactWithPhoneNumbers) => {
+    const searchParams = new URLSearchParams(window.location.search)
+    
     if (isMobile) {
-      router.push(`/contact/${contact.urlName}`)
+      // For mobile, construct the URL with existing search parameters
+      const currentParams = new URLSearchParams()
+      for (const [key, value] of searchParams) {
+        if (key !== 'contact') {
+          currentParams.append(key, value)
+        }
+      }
+      const queryString = currentParams.toString()
+      router.push(`/contact/${contact.urlName}${queryString ? `?${queryString}` : ''}`)
     } else {
-      router.push(`/?contact=${contact.urlName}`)
+      // For desktop, preserve all existing parameters and update/add the contact parameter
+      searchParams.set('contact', contact.urlName)
+      router.push(`/?${searchParams.toString()}`)
     }
   }
 
@@ -154,9 +167,11 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
 
   const renderContactList = () => (
     <div className="flex flex-col h-full">
-      <div className="h-14 border-b">
-        <SearchBar />
-      </div>
+      {!hideSearchBar && (
+        <div className="h-14 border-b flex items-center">
+          <SearchBar />
+        </div>
+      )}
       <div ref={containerRef} className="flex-1 min-h-0 relative">
         {flattenedItems.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">No contacts found</div>

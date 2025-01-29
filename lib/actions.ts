@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { db } from "./db"
 import { contacts, phoneNumbers, groups, contactGroups, type Contact, type PhoneNumber, type Group } from "./db/schema"
-import { eq, or, ilike, and, sql } from "drizzle-orm"
+import { eq, or, ilike, and, sql, asc } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { put } from "@vercel/blob"
 
@@ -14,6 +14,7 @@ export async function getGroups() {
       id: groups.id,
       name: groups.name,
       type: groups.type,
+      position: groups.position,
       createdAt: groups.createdAt,
       contactCount: sql<number>`count(DISTINCT ${contactGroups.id})::int`,
       contacts: sql<{ contactId: string }[]>`json_agg(json_build_object('contactId', ${contactGroups.contactId})) FILTER (WHERE ${contactGroups.contactId} IS NOT NULL)`
@@ -21,6 +22,7 @@ export async function getGroups() {
       .from(groups)
       .leftJoin(contactGroups, eq(groups.id, contactGroups.groupId))
       .groupBy(groups.id)
+      .orderBy(sql`CASE WHEN ${groups.type} = 'system' THEN 0 ELSE 1 END, ${groups.position}`)
 
     // Clean up the contacts array for groups with no contacts
     return results.map(group => ({
@@ -99,13 +101,29 @@ export async function addContact(
   phones: { number: string; label: string; isPrimary?: boolean }[],
   email?: string,
   notes?: string,
+  imageFile?: File,
 ) {
   const contactId = nanoid()
+  let imageUrl: string | undefined
+
+  if (imageFile) {
+    try {
+      const blob = await put(`avatars/${contactId}/${imageFile.name}`, imageFile, {
+        access: "public",
+      })
+      imageUrl = blob.url
+    } catch (error) {
+      console.error("Error uploading to Vercel Blob:", error)
+      throw new Error("Failed to upload image")
+    }
+  }
+
   await db.insert(contacts).values({
     id: contactId,
     name,
     email,
     notes,
+    imageUrl,
   })
 
   if (phones && phones.length > 0) {
@@ -217,12 +235,22 @@ export async function deleteContact(id: string) {
 
 export async function addGroup(name: string) {
   try {
-    const [group] = await db.insert(groups)
-      .values({ name, type: 'custom' })
-      .returning()
+    // Get the highest position
+    const result = await db.select({
+      maxPosition: sql<number>`COALESCE(MAX(position), -1)`
+    })
+      .from(groups)
+      .where(eq(groups.type, 'custom'))
+
+    const newPosition = (result[0]?.maxPosition ?? -1) + 1
+
+    await db.insert(groups).values({
+      name,
+      type: 'custom',
+      position: newPosition
+    })
 
     revalidatePath("/")
-    return group
   } catch (error) {
     console.error("Error adding group:", error)
     throw new Error("Failed to add group")
@@ -284,6 +312,58 @@ export async function removeContactFromGroup(contactId: string, groupId: string)
   } catch (error) {
     console.error("Error removing contact from group:", error)
     throw new Error("Failed to remove contact from group")
+  }
+}
+
+export const reorderGroups = async (draggedGroupId: string, targetGroupId: string) => {
+  try {
+    // Get the dragged and target groups
+    const [draggedGroup] = await db.select()
+      .from(groups)
+      .where(eq(groups.id, draggedGroupId))
+      .limit(1)
+
+    const [targetGroup] = await db.select()
+      .from(groups)
+      .where(eq(groups.id, targetGroupId))
+      .limit(1)
+
+    if (!draggedGroup || !targetGroup) {
+      throw new Error('Groups not found')
+    }
+
+    // Get all custom groups ordered by position
+    const allGroups = await db.select()
+      .from(groups)
+      .where(eq(groups.type, 'custom'))
+      .orderBy(asc(groups.position))
+
+    // Find the indices
+    const draggedIndex = allGroups.findIndex(g => g.id === draggedGroupId)
+    const targetIndex = allGroups.findIndex(g => g.id === targetGroupId)
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      throw new Error('Invalid group positions')
+    }
+
+    // Reorder the array
+    const reorderedGroups = [...allGroups]
+    const [removed] = reorderedGroups.splice(draggedIndex, 1)
+    reorderedGroups.splice(targetIndex, 0, removed)
+
+    // Update positions in the database
+    await Promise.all(
+      reorderedGroups.map((group, index) =>
+        db.update(groups)
+          .set({ position: index })
+          .where(eq(groups.id, group.id))
+      )
+    )
+
+    revalidatePath("/")
+    return { success: true }
+  } catch (error) {
+    throw error
   }
 }
 

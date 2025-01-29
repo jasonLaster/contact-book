@@ -148,6 +148,11 @@ In addition, there are many smaller "ui/" components that are either:
 - Searching is done via a query param (`search`).  
 - The user's selected group is also a query param (`group`).  
 - The user's selected contact is a query param (`contact`) on desktop, or a dynamic route segment on mobile.
+- All URL parameters (including search) are preserved when:
+  - Selecting a contact (both desktop and mobile views)
+  - Deleting a contact
+  - Navigating between contacts
+  This ensures the search context is maintained throughout the user's interaction with the app.
 
 ### 2.6 Searching, Sorting, & Grouping
 
@@ -155,6 +160,8 @@ In addition, there are many smaller "ui/" components that are either:
    - Name (case-insensitive).
    - Email (case-insensitive).
    - Phone numbers.  
+   - The search parameter is preserved in the URL during all navigation actions
+   - When a contact is selected or deleted, the search context is maintained
    **_Question:_** The code shows `contact.phoneNumbers.some(phone => phone.number.includes(search))`. We need to confirm if partial matches or prefix-only matches are desired. Is substring matching acceptable for phone number searching?
 
 2. **Grouping** is done by either:
@@ -196,6 +203,14 @@ In addition, there are many smaller "ui/" components that are either:
   3. Custom groups (with optional emoji prefixes)
 - Each item has the same padding and spacing for visual consistency
 - Supports editing custom group's name or emoji prefix
+- Groups can be reordered via drag and drop using @dnd-kit:
+  - Smooth animation during dragging with optimistic updates
+  - Visual feedback shows where the group will be placed
+  - Groups can only be moved vertically (using restrictToVerticalAxis modifier)
+  - Optimistic updates show immediate reordering while server request is pending
+  - Graceful error handling with automatic reversion if server update fails
+  - Toast notifications for success/failure states
+  - Position is persisted in the database
 - "Add Group" button at the bottom opens a dialog to create a new group
 - Uses a shared context (`SidebarContext`) to manage collapse state across components
 
@@ -430,5 +445,13 @@ The notes field is a key part of the contact details that allows for free-form t
 - Added smooth save animation
 - Fixed text positioning issues
 - Improved visual feedback for saving state
+
+### Search Parameter Preservation
+- Modified URL handling to maintain search context throughout the application
+- Search parameters are now preserved when:
+  - Selecting a contact in both desktop and mobile views
+  - Deleting a contact and returning to the contact list
+  - Navigating between different contacts
+- This enhancement improves user experience by maintaining search context during navigation
 
 **End of Requirements**

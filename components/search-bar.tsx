@@ -7,6 +7,7 @@ import { useDebounce } from "@/lib/hooks"
 import { useEffect, useState, useTransition } from "react"
 import { useSidebar } from "@/lib/contexts/sidebar-context"
 import { Button } from "./ui/button"
+import { cn } from "@/lib/utils"
 
 export function SearchBar() {
   const [value, setValue] = useState("")
@@ -32,18 +33,18 @@ export function SearchBar() {
   }
 
   return (
-    <div className="h-[56px] px-4 flex items-center gap-2">
+    <div className="h-[56px] flex items-center gap-2">
       {isCollapsed && (
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setIsCollapsed(false)}
-          className="shrink-0"
+          className="shrink-0 ml-2"
         >
           <PanelRight className="h-4 w-4" />
         </Button>
       )}
-      <div className="relative w-full">
+      <div className={cn("relative w-full", isCollapsed ? "pr-4" : "px-4")}>
         <Input
           value={value}
           onChange={handleChange}

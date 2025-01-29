@@ -130,20 +130,32 @@ export function ContactList({ contacts, hideSearchBar = false }: { contacts: Con
     
     if (isMobile) {
       // For mobile, construct the URL with existing search parameters
-      const currentParams = new URLSearchParams()
-      for (const [key, value] of searchParams) {
-        if (key !== 'contact') {
-          currentParams.append(key, value)
-        }
-      }
-      const queryString = currentParams.toString()
+      const queryString = searchParams.toString()
       router.push(`/contact/${contact.urlName}${queryString ? `?${queryString}` : ''}`)
     } else {
       // For desktop, preserve all existing parameters and update/add the contact parameter
       searchParams.set('contact', contact.urlName)
-      router.push(`/?${searchParams.toString()}`)
+      const queryString = searchParams.toString()
+      router.push(`/?${queryString}`, { scroll: false })
     }
   }
+
+  // Add a new effect to handle URL parameter changes
+  useEffect(() => {
+    const handleURLChange = () => {
+      const params = new URLSearchParams(window.location.search)
+      const contactParam = params.get('contact')
+      
+      // If we have a selected contact but it's not in the URL, add it back
+      if (selectedContactUrlName && !contactParam && !isMobile) {
+        params.set('contact', selectedContactUrlName)
+        router.push(`/?${params.toString()}`, { scroll: false })
+      }
+    }
+
+    window.addEventListener('popstate', handleURLChange)
+    return () => window.removeEventListener('popstate', handleURLChange)
+  }, [selectedContactUrlName, router, isMobile])
 
   const getItemSize = (index: number) => {
     return flattenedItems[index].height
@@ -177,12 +189,16 @@ export function ContactList({ contacts, hideSearchBar = false }: { contacts: Con
           <div className="text-center text-muted-foreground py-8">No contacts found</div>
         ) : (
           <>
-            <div className="pr-8 overflow-auto h-full">
+            <div className="pr-8 overflow-auto h-full" id="contact-list-container">
               <div className="relative">
                 {flattenedItems.map((item, index) => {
                   if (item.type === "header") {
                     return (
-                      <div key={item.letter} className="sticky top-0 z-10">
+                      <div 
+                        key={item.letter} 
+                        className="sticky top-0 z-10"
+                        id={`letter-section-${item.letter}`}
+                      >
                         <div className="text-2xl font-semibold bg-background/95 backdrop-blur-sm py-2 px-4">
                           {item.letter}
                         </div>
@@ -224,8 +240,18 @@ export function ContactList({ contacts, hideSearchBar = false }: { contacts: Con
                   onClick={() => {
                     const index = letterToIndex.get(letter)
                     if (index !== undefined) {
-                      const element = document.querySelector(`[data-letter="${letter}"]`)
-                      element?.scrollIntoView({ behavior: 'smooth' })
+                      const sectionElement = document.getElementById(`letter-section-${letter}`)
+                      const container = document.getElementById('contact-list-container')
+                      if (sectionElement && container) {
+                        const containerRect = container.getBoundingClientRect()
+                        const sectionRect = sectionElement.getBoundingClientRect()
+                        const scrollOffset = sectionRect.top - containerRect.top + container.scrollTop
+                        
+                        container.scrollTo({
+                          top: scrollOffset,
+                          behavior: 'smooth'
+                        })
+                      }
                     }
                   }}
                   disabled={!availableLetters.includes(letter)}

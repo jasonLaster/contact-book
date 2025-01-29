@@ -27,7 +27,7 @@ export default async function Page({
 
   return (
     <div className="h-screen grid grid-cols-[auto_1fr_500px] bg-background">
-      <div className="hidden lg:flex flex-col">
+      <div className="flex flex-col">
         <GroupsSidebar groups={groups} />
       </div>
       <div className="grid grid-rows-[auto_1fr] border-r overflow-hidden">

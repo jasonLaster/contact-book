@@ -148,11 +148,12 @@ In addition, there are many smaller "ui/" components that are either:
 - Searching is done via a query param (`search`).  
 - The user's selected group is also a query param (`group`).  
 - The user's selected contact is a query param (`contact`) on desktop, or a dynamic route segment on mobile.
-- All URL parameters (including search) are preserved when:
+- All URL parameters are preserved independently of each other when:
   - Selecting a contact (both desktop and mobile views)
   - Deleting a contact
   - Navigating between contacts
-  This ensures the search context is maintained throughout the user's interaction with the app.
+  - Clearing or modifying the search parameter
+  This ensures that contact selection is maintained even when search context is cleared or modified.
 
 ### 2.6 Searching, Sorting, & Grouping
 

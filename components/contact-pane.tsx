@@ -69,9 +69,9 @@ interface ContactUpdateData {
     label: string
     isPrimary: boolean
   }[]
-  email?: string
-  notes?: string
-  imageUrl?: string
+  email?: string | null
+  notes?: string | null
+  imageUrl?: string | null
 }
 
 interface GroupWithContacts extends Group {
@@ -91,10 +91,10 @@ const convertDbContactToFormData = (contact: Contact & { phoneNumbers: PhoneNumb
   return {
     id,
     name,
-    email: email || undefined,
-    notes: notes || undefined,
+    email: email ?? undefined,
+    notes: notes ?? undefined,
     phoneNumbers: phoneNumbers.map(convertPhoneNumber),
-    imageUrl: imageUrl || undefined,
+    imageUrl: imageUrl ?? undefined,
     urlName
   }
 }
@@ -134,9 +134,9 @@ const convertDbContactToUpdateData = (contact: Contact & { phoneNumbers: PhoneNu
       label: p.label,
       isPrimary: p.isPrimary || false
     })),
-    email,
-    notes,
-    imageUrl
+    email: email ?? undefined,
+    notes: notes ?? undefined,
+    imageUrl: imageUrl ?? undefined
   }
 }
 
@@ -364,7 +364,12 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
           imageUrl: formData.imageUrl
         }
         const updatedContact = await updateContact(contact.id, updateData, file)
-        setFormData(convertDbContactToFormData(updatedContact))
+        if (updatedContact) {
+          setFormData(convertDbContactToFormData({
+            ...updatedContact,
+            urlName: updatedContact.name.toLowerCase().replace(/\s+/g, "-")
+          }))
+        }
         toast({
           title: "Image uploaded",
           description: "Your contact's avatar has been updated.",
@@ -543,27 +548,38 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
                   <Users className="h-5 w-5" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-60 p-2" align="end">
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm">Groups</h4>
-                  <div className="space-y-2">
-                    {groups?.map((group: GroupWithContacts) => (
-                      <div key={group.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`group-${group.id}`}
-                          checked={group.contacts?.some((c: { contactId: string }) => c.contactId === contact?.id)}
-                          onCheckedChange={(checked) => handleGroupChange(group.id, checked as boolean)}
-                        />
-                        <label
-                          htmlFor={`group-${group.id}`}
-                          className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              <PopoverContent className="w-72" align="end">
+                <ScrollArea className="h-[300px]">
+                  <div className="space-y-1.5 px-1">
+                    {groups?.map((group: GroupWithContacts) => {
+                      const isInGroup = group.contacts?.some((c: { contactId: string }) => c.contactId === contact?.id);
+                      return (
+                        <div 
+                          key={group.id} 
+                          className={`flex items-center space-x-2 p-2 rounded-md transition-colors ${
+                            isInGroup ? 'bg-accent/50' : 'hover:bg-accent/30'
+                          }`}
                         >
-                          {group.name}
-                        </label>
-                      </div>
-                    ))}
+                          <Checkbox
+                            id={`group-${group.id}`}
+                            checked={isInGroup}
+                            onCheckedChange={(checked) => handleGroupChange(group.id, checked as boolean)}
+                            className="data-[state=checked]:bg-accent-foreground/20 data-[state=checked]:text-accent-foreground"
+                          />
+                          <label
+                            htmlFor={`group-${group.id}`}
+                            className="flex-1 text-sm font-medium cursor-pointer"
+                          >
+                            {group.name}
+                          </label>
+                          <span className="text-xs text-muted-foreground">
+                            {group.contactCount} {group.contactCount === 1 ? 'contact' : 'contacts'}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                </ScrollArea>
               </PopoverContent>
             </Popover>
             <Button

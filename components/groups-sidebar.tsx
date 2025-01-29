@@ -270,7 +270,11 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
   }
 
   return (
-    <div className={cn("w-[240px] flex flex-col h-full border-r", className)}>
+    <div className={cn(
+      "flex flex-col h-full border-r transition-all duration-300",
+      isCollapsed ? "w-0 overflow-hidden" : "w-[240px]",
+      className
+    )}>
       <div className="h-14 flex items-center gap-2 px-4 border-b">
         <BookOpen className="h-5 w-5" />
         <h2 className="font-semibold">Contacts</h2>
@@ -279,7 +283,7 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
           variant="ghost"
           size="icon"
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="lg:hidden"
+          className="shrink-0"
         >
           {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
         </Button>

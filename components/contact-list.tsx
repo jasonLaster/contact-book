@@ -162,52 +162,38 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
           <div className="text-center text-muted-foreground py-8">No contacts found</div>
         ) : (
           <>
-            <div className="pr-8 overflow-auto">
+            <div className="pr-8 overflow-auto h-full">
               <div className="relative">
-            <VariableSizeList
-              ref={listRef}
-              height={containerHeight || 400}
-              width="100%"
-              itemCount={flattenedItems.length}
-              itemSize={getItemSize}
-              onScroll={({ scrollOffset }) => setScrollOffset(scrollOffset)}
-              estimatedItemSize={ITEM_SIZE}
-              overscanCount={10}
-                className="scrollbar-thin scrollbar-thumb-accent scrollbar-track-transparent"
-            >
-              {({ index, style }) => {
-                const item = flattenedItems[index]
-                
-                if (item.type === "header") {
-                  return (
-                        <div style={style} className="sticky top-0 z-10">
-                          <div className="text-2xl font-semibold bg-background/95 backdrop-blur-sm py-2 px-4">
-                        {item.letter}
+                {flattenedItems.map((item, index) => {
+                  if (item.type === "header") {
+                    return (
+                      <div key={item.letter} className="sticky top-0 z-10">
+                        <div className="text-2xl font-semibold bg-background/95 backdrop-blur-sm py-2 px-4">
+                          {item.letter}
+                        </div>
                       </div>
+                    )
+                  }
+
+                  if (!item.contact) return null
+
+                  return (
+                    <div
+                      key={item.contact.id}
+                      className={`px-4 py-2 hover:bg-accent transition-colors cursor-pointer ${
+                        selectedContactUrlName === item.contact.urlName ? "bg-accent" : ""
+                      }`}
+                      onClick={() => {
+                        if (item.contact) {
+                          console.log("[ContactList] Selecting contact:", item.contact.name, item.contact.urlName)
+                          handleContactSelect(item.contact)
+                        }
+                      }}
+                    >
+                      <div className="font-medium">{item.contact.name}</div>
                     </div>
                   )
-                }
-
-                if (!item.contact) return null
-
-                return (
-                  <div
-                    style={style}
-                    className={`px-4 py-2 hover:bg-accent transition-colors cursor-pointer ${
-                      selectedContactUrlName === item.contact.urlName ? "bg-accent" : ""
-                    }`}
-                    onClick={() => {
-                      if (item.contact) {
-                        console.log("[ContactList] Selecting contact:", item.contact.name, item.contact.urlName)
-                        handleContactSelect(item.contact)
-                      }
-                    }}
-                  >
-                    <div className="font-medium">{item.contact.name}</div>
-                  </div>
-                )
-              }}
-            </VariableSizeList>
+                })}
               </div>
             </div>
             <nav
@@ -222,8 +208,9 @@ export function ContactList({ contacts }: { contacts: ContactWithPhoneNumbers[] 
                   }`}
                   onClick={() => {
                     const index = letterToIndex.get(letter)
-                    if (index !== undefined && listRef.current) {
-                      listRef.current.scrollToItem(index, "start")
+                    if (index !== undefined) {
+                      const element = document.querySelector(`[data-letter="${letter}"]`)
+                      element?.scrollIntoView({ behavior: 'smooth' })
                     }
                   }}
                   disabled={!availableLetters.includes(letter)}

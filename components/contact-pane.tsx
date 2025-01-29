@@ -404,6 +404,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
   const handleSaveNotes = async (notes: string) => {
     if (!contact) return;
 
+    console.log('Starting save, setting isSavingNotes to true');
     setIsSavingNotes(true);
     try {
       const updateData = convertToUpdateData({
@@ -412,6 +413,11 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
       });
       await updateContact(contact.id, updateData);
       setFormData(prev => ({ ...prev, notes: notes.trim() === "" ? undefined : notes }));
+      console.log('Save completed, will clear isSavingNotes in 1 second');
+      setTimeout(() => {
+        console.log('Clearing isSavingNotes');
+        setIsSavingNotes(false);
+      }, 1000);
     } catch (error) {
       console.error("Error updating notes:", error);
       toast({
@@ -419,7 +425,6 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
         description: "Your changes couldn't be saved. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setIsSavingNotes(false);
     }
   }
@@ -683,19 +688,25 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
             <div className="space-y-3 flex flex-col flex-1 min-h-0 overflow-hidden">
               <Label htmlFor="notes" className="text-sm text-muted-foreground font-medium flex-shrink-0">Notes</Label>
-              <div className={`relative flex-1 flex flex-col min-h-0 ${isSavingNotes ? 'snake-tron' : ''}`}>
+              <div className="relative flex-1 flex flex-col min-h-0">
                 <Textarea
                   id="notes"
                   value={formData.notes || ""}
                   onChange={handleNotesChange}
+                  onBlur={() => {
+                    console.log('Blur event triggered');
+                    if (notesTimeoutRef.current) {
+                      clearTimeout(notesTimeoutRef.current);
+                    }
+                    setIsSavingNotes(true);
+                    console.log('Set isSavingNotes to true on blur');
+                    handleSaveNotes(formData.notes || "");
+                  }}
                   placeholder="Add notes..."
-                  className="flex-1 resize-none overflow-auto min-h-[120px]"
+                  className={`flex-1 resize-none overflow-auto min-h-[120px] p-3 bg-background border-0 focus-visible:ring-0 ${
+                    isSavingNotes ? 'saving-notes' : ''
+                  }`}
                 />
-                {isSavingNotes && (
-                  <div className="absolute right-2 top-2 text-muted-foreground animate-pulse">
-                    <Save className="h-4 w-4" />
-                  </div>
-                )}
               </div>
             </div>
           </div>

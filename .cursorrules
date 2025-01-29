@@ -1,0 +1,15 @@
+
+
+## Conventions
+
+1. NextJS
+2. TypeScript
+3. TailwindCSS
+4. Shadcn/UI
+
+
+## Workflow
+
+1. Always read the requirements document before starting to code.
+2. Update the requirements document after you make a change. Try to update the requirements as opposed to just adding new sections.
+3. Summarize the changes you made in the requirements document.

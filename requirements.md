@@ -1,4 +1,3 @@
-
 # Contact Book - Requirements Document
 
 ## 1. Overview
@@ -6,16 +5,16 @@
 This application is a full-stack **Next.js** app (using the App Router) that manages a list of Contacts and Groups. It supports:
 
 - Creating, reading, updating, and deleting (CRUD) Contacts.
-- Managing multiple phone numbers per contact (with the ability to add/remove phone numbers and designate a “primary” one).
-- Grouping contacts into categories, both system-defined (e.g., “All Contacts” or “Starred”) and user-defined.
+- Managing multiple phone numbers per contact (with the ability to add/remove phone numbers and designate a "primary" one).
+- Grouping contacts into categories, both system-defined (e.g., "All Contacts" or "Starred") and user-defined.
 - Searching contacts by name, phone, or email.
 - Viewing, editing, or deleting a single contact in a detail pane.
-- Drag-and-drop image upload for the contact’s avatar (stored on Vercel Blob).
+- Drag-and-drop image upload for the contact's avatar (stored on Vercel Blob).
 - Automatic note-saving with a small time delay (auto-save on text field blur or 1 second after changes stop).
 
 The code is split into multiple files in the `app/` directory (Next.js route handlers/layouts), `components/` for UI components and domain components, plus some `lib/` modules for server-side data actions and utility functions.
 
-**_Question:_** We see some references to “system groups” (like "Favorites" or "Starred") in the code. Are there any official or additional system groups beyond the ones we see in the code (i.e., "All Contacts," "Starred," etc.) or is that set flexible?
+**_Question:_** We see some references to "system groups" (like "Favorites" or "Starred") in the code. Are there any official or additional system groups beyond the ones we see in the code (i.e., "All Contacts," "Starred," etc.) or is that set flexible?
 
 ---
 
@@ -48,8 +47,11 @@ The `components/` directory contains many UI elements (some from a design system
 
 - **`components/contact-list.tsx`**  
   Renders a scrollable, alphabetically partitioned list of Contacts.  
-  - Uses `react-window` (`VariableSizeList`) to handle virtualization of potentially large contact lists.  
-  - Supports searching, grouping, and dynamic row heights for section headers vs. contact items.  
+  - Uses native browser scrolling with optimized performance for smooth scrolling and header transitions
+  - Implements sticky alphabetical headers that remain fixed at the top while scrolling through their respective sections
+  - Headers smoothly transition between sections as the user scrolls, with the next section's header pushing the current one up
+  - Supports searching and grouping with dynamic section headers
+  - Features an alphabetical navigation sidebar that enables quick jumping to sections with smooth scrolling
   - On mobile, a contact detail is not rendered side-by-side but is navigated to separately.
 
 - **`components/contact-pane.tsx`**  
@@ -64,7 +66,7 @@ The `components/` directory contains many UI elements (some from a design system
   - Integrates with `AddGroupDialog` (a modal to create custom groups).  
   - Supports editing custom groups (renaming them with optional emoji prefix).  
   - Clicking a group filters the contact list.  
-  - “All Contacts” is the default or fallback group.
+  - "All Contacts" is the default or fallback group.
 
 - **`components/edit-contact-form.tsx`**  
   Separate form for editing contact details (older or alternative approach). The main editing functionality is now in `ContactPane`, so this file duplicates some logic. It still references `updateContact`.
@@ -78,7 +80,7 @@ The `components/` directory contains many UI elements (some from a design system
 - **`components/delete-contact-dialog.tsx`**  
   Displays a confirmation dialog for deleting a contact, calls `deleteContact`.
 
-In addition, there are many smaller “ui/” components that are either:
+In addition, there are many smaller "ui/" components that are either:
 - Wrappers around popular libraries (e.g., Radix UI, Recharts, Lucide Icons, etc.).
 - Low-level building blocks like `Button`, `Input`, `Textarea`, `Select`, `Dialog`, `Popover`, etc.
 
@@ -92,7 +94,7 @@ In addition, there are many smaller “ui/” components that are either:
   - `contactGroups` table: bridging table for many-to-many relationships between `contacts` and `groups`.
   
 - **`lib/actions.ts`**  
-  Contains serverless functions (Next.js “server actions”) that handle:
+  Contains serverless functions (Next.js "server actions") that handle:
   1. **`getContacts(search, groupId)`**:  
      - Retrieves all contacts (and phone numbers) from DB.  
      - Optionally filters by a search string (applied client-side after retrieving them, except for group filtering which is done in the query).  
@@ -134,7 +136,7 @@ In addition, there are many smaller “ui/” components that are either:
   2. Contact List.  
   3. Contact Pane (detail) on the right (for whichever contact is selected).  
 
-  The “selection” is driven by query parameters (e.g., `/?search=...` or `/?contact=...`).  
+  The "selection" is driven by query parameters (e.g., `/?search=...` or `/?contact=...`).  
 
 - **Mobile**:  
   The same URL (`/`) shows only the contact list and group sidebar in a single column.  
@@ -144,8 +146,8 @@ In addition, there are many smaller “ui/” components that are either:
 
 - The majority of UI state is local (React `useState`, `useEffect`).  
 - Searching is done via a query param (`search`).  
-- The user’s selected group is also a query param (`group`).  
-- The user’s selected contact is a query param (`contact`) on desktop, or a dynamic route segment on mobile.
+- The user's selected group is also a query param (`group`).  
+- The user's selected contact is a query param (`contact`) on desktop, or a dynamic route segment on mobile.
 
 ### 2.6 Searching, Sorting, & Grouping
 
@@ -159,25 +161,25 @@ In addition, there are many smaller “ui/” components that are either:
    - Setting a `group` query param (client route reload).
    - If `groupId` is present, the server query does an inner join on `contactGroups`.
 
-3. **Sorting** is alphabetical by the contact’s name.  
+3. **Sorting** is alphabetical by the contact's name.  
 4. Within the Contact List, contacts are grouped by the first letter (A-Z). Letters outside [A-Z] are currently ignored.  
-   **_Question:_** Should we handle letters outside `[A-Z]`, or should they always appear in a “#” or “Other” section?
+   **_Question:_** Should we handle letters outside `[A-Z]`, or should they always appear in a "#" or "Other" section?
 
 ### 2.7 Contact Pane Editing Flow
 
-- The detail pane has “edit mode” toggled by a button.  
+- The detail pane has "edit mode" toggled by a button.  
 - When editing, the user can:
   - Add, remove, reorder phone numbers (via drag-and-drop).  
   - Change the name, email, or notes.  
-  - If user updates notes, they’re auto-saved after 1 second of no typing or on blur.  
+  - If user updates notes, they're auto-saved after 1 second of no typing or on blur.  
 - Avatars can be replaced by clicking or dragging in an image.
 
 ### 2.8 Groups Sidebar
 
 - Collapsible/expandable on the left.  
 - Lists both system and custom groups.  
-- Supports editing a custom group’s name or emoji prefix.  
-- “Add Group” opens a dialog to create a new group.
+- Supports editing a custom group's name or emoji prefix.  
+- "Add Group" opens a dialog to create a new group.
 
 ### 2.9 Error Handling & Notifications
 
@@ -187,8 +189,8 @@ In addition, there are many smaller “ui/” components that are either:
 
 ### 2.10 Performance & Scalability
 
-- The contact list is virtualized with `react-window` for better performance with large lists.  
-- Minimal database calls are used by Next.js server actions, each revalidating the main page.  
+- The contact list uses native browser scrolling with CSS sticky positioning for optimal performance
+- Minimal database calls are used by Next.js server actions, each revalidating the main page
 - **_Question:_** There is a potential optimization for search if we do server-side filtering. Right now, `getContacts()` returns everything, then filters in code for the search term. Confirm if that is acceptable or if server-side filtering is planned (especially for large data sets).
 
 ---
@@ -196,25 +198,41 @@ In addition, there are many smaller “ui/” components that are either:
 ## 3. Detailed Functional Requirements
 
 1. **Contact Management**  
-   - **Create** a new contact from the “Add Contact” dialog. At a minimum, a contact needs a name. Additional phone numbers, email, and notes are optional.  
+   - **Create** a new contact from the "Add Contact" dialog. At a minimum, a contact needs a name. Additional phone numbers, email, and notes are optional.  
    - **Read** contacts in the main list or a selected group.  
      - The system ensures phone numbers are associated and displayed with each contact.  
-   - **Update** a contact’s name, phone numbers (add/remove, reorder, set primary), notes, and email.  
+   - **Update** a contact's name, phone numbers (add/remove, reorder, set primary), notes, and email.  
      - Changes are persisted via `updateContact()`.  
      - If an avatar image is provided (drag-and-drop or file picker), the image is uploaded to Vercel Blob, and `contacts.imageUrl` is updated in DB.  
-   - **Delete** a contact from either the “Delete” button in the contact pane or using the `DeleteContactDialog`.  
+   - **Delete** a contact from either the "Delete" button in the contact pane or using the `DeleteContactDialog`.  
 
 2. **Phone Number Handling**  
    - A contact can have multiple phone numbers, each with a `label`, `isPrimary`, and the phone number text.  
-   - “Primary” is indicated by a boolean. The UI allows toggling which number is primary.  
+   - "Primary" is indicated by a boolean. The UI allows toggling which number is primary.  
    - Client-side phone number formatting is done on input (very simple parentheses/dashes logic).
 
 3. **Notes Auto-save**  
-   - While editing notes, changes are auto-saved on a short delay (default 1 second) or on blur.  
-   - If saving fails, an error toast is displayed.
+   - Notes field has a clean, minimal appearance with no visible borders
+   - Maintains consistent padding (12px) without layout shifts
+   - Uses theme background color for seamless integration
+   - Changes are auto-saved in two scenarios:
+     - After 1 second of no typing (debounced)
+     - When the field loses focus (blur event)
+   - Visual feedback during save:
+     - Subtle gradient animation moving left to right
+     - Uses theme colors (indigo to purple)
+     - Low opacity (0.1-0.3) for non-intrusive feedback
+     - Animation duration: 3 seconds with smooth easing
+   - Technical considerations:
+     - Preserves textarea functionality (scrolling, resize)
+     - Maintains text position during save animation
+     - Ensures consistent behavior across theme changes
+   - Error handling:
+     - If saving fails, an error toast is displayed
+     - Original content is preserved on save failure
 
 4. **Groups**  
-   - **System** groups have a `type = 'system'` in the DB, e.g. “Starred,” though the code's example only shows `'system'` for certain ones.  
+   - **System** groups have a `type = 'system'` in the DB, e.g. "Starred," though the code's example only shows `'system'` for certain ones.  
    - **Custom** groups are user-created (`type = 'custom'`). The user can add a name and optional emoji.  
    - A contact can belong to multiple groups.  
    - The UI shows the count of how many contacts are in each group.  
@@ -222,7 +240,7 @@ In addition, there are many smaller “ui/” components that are either:
    - The user can add or remove a contact to/from a group via a checkbox in the `Popover` triggered by the group icon on the contact detail screen.
 
 5. **Search**  
-   - The user can type a string in the “Search” input.  
+   - The user can type a string in the "Search" input.  
    - The URL updates with `?search=someTerm`.  
    - The contact list is filtered to only those whose name, email, or phone matches the string.  
    - Searching currently is done after fetching all contacts on the client.
@@ -230,11 +248,11 @@ In addition, there are many smaller “ui/” components that are either:
 6. **UI Layout**  
    - Desktop: Tri-column layout (Groups / List / Detail Pane).  
    - Mobile: Collapsed layout (Groups, then the list; contact detail is a separate page).  
-   - The detail pane can be closed via “Back” arrow in mobile view. On desktop, switching the query param closes it.
+   - The detail pane can be closed via "Back" arrow in mobile view. On desktop, switching the query param closes it.
 
 7. **Error States & Toasts**  
-   - Every server action is wrapped in try/catch. A toast is shown with “Error” if something fails.  
-   - The code references a possible “Data transfer quota exceeded” error which also triggers a special alert dialog.
+   - Every server action is wrapped in try/catch. A toast is shown with "Error" if something fails.  
+   - The code references a possible "Data transfer quota exceeded" error which also triggers a special alert dialog.
 
 8. **Image / Avatar Handling**  
    - The user can click or drop an image onto the avatar area.  
@@ -276,16 +294,16 @@ In addition, there are many smaller “ui/” components that are either:
 ## 5. Error Handling & Edge Cases
 
 1. **No Contact Selected**  
-   - The right-hand panel (on desktop) or the entire route (on mobile) says “No Contact Selected.”
+   - The right-hand panel (on desktop) or the entire route (on mobile) says "No Contact Selected."
 2. **Contact Not Found**  
    - If the user tries to navigate to `/contact/[urlName]` with an invalid contact, Next.js calls `notFound()`.
 3. **Invalid Image Type**  
-   - If the user drags a non-image file, a toast with “Invalid file” is shown.
+   - If the user drags a non-image file, a toast with "Invalid file" is shown.
 4. **Data Transfer Quota**  
    - If the user hits a data quota limit, an alert dialog appears to indicate the plan must be upgraded.
 5. **Group Does Not Exist**  
-   - If a user tries to filter by a group that doesn’t exist, the contact list is empty.  
-     **_Question:_** Should we show an error or a “Group not found” message in the UI?
+   - If a user tries to filter by a group that doesn't exist, the contact list is empty.  
+     **_Question:_** Should we show an error or a "Group not found" message in the UI?
 
 ---
 
@@ -317,7 +335,7 @@ In addition, there are many smaller “ui/” components that are either:
    - Possibly store phone numbers in a more index-friendly manner.
 
 2. **Additional System Groups**  
-   - E.g. “Recently Added,” “Frequent,” “Archived,” etc.
+   - E.g. "Recently Added," "Frequent," "Archived," etc.
 
 3. **Bulk Operations**  
    - Deleting multiple contacts or adding them to a group in one step.
@@ -336,13 +354,13 @@ In addition, there are many smaller “ui/” components that are either:
 ## 8. Questions / Clarifications
 
 1. **System Groups**  
-   - Are there specific system groups the user can’t rename or delete? Currently it’s implied that “All Contacts” or “Starred” might be system groups. Confirm the full set?
+   - Are there specific system groups the user can't rename or delete? Currently it's implied that "All Contacts" or "Starred" might be system groups. Confirm the full set?
 
 2. **Search Implementation**  
    - Currently we do partial substring matching on phone, name, and email. Is this the desired behavior?
 
 3. **Handling of Non-English Letters**  
-   - If a contact’s name starts with a Unicode character outside `[A-Z]`, do we place it in an “Other” section or ignore? The current code discards them.
+   - If a contact's name starts with a Unicode character outside `[A-Z]`, do we place it in an "Other" section or ignore? The current code discards them.
 
 4. **Authentication**  
    - Should this app be user-specific or is it a single-user system? The code does not show any password or user management.
@@ -360,5 +378,39 @@ In addition, there are many smaller “ui/” components that are either:
 - Update the detailed flows if or when new UI or server actions are added.
 
 ---
+
+## Notes Field
+
+The notes field is a key part of the contact details that allows for free-form text input:
+
+### Styling
+- No visible borders in normal state
+- Clean, minimal appearance that integrates with the UI
+- Maintains consistent padding (12px) without shifting
+- Uses theme background color
+
+### Save Behavior
+- Auto-saves after 1 second of no typing
+- Also saves on blur (when clicking away)
+- Shows a subtle animation during save:
+  - Gradient moves from left to right
+  - Uses theme colors (indigo to purple)
+  - Gentle opacity (0.1-0.3) for non-intrusive feedback
+  - Animation duration: 3 seconds
+  - Smooth easing for natural movement
+
+### Technical Implementation
+- Uses a debounced save to prevent too frequent API calls
+- Maintains text position and padding during save animation
+- Preserves textarea functionality (scrolling, resize)
+- Ensures consistent behavior across theme changes
+
+## Recent Changes
+
+### Notes Field Enhancement
+- Removed default borders and focus rings
+- Added smooth save animation
+- Fixed text positioning issues
+- Improved visual feedback for saving state
 
 **End of Requirements**

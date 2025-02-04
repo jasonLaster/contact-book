@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogTrigger } from "./ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
 import { addGroup } from "@/lib/actions"
@@ -57,6 +57,9 @@ export function AddGroupDialog({ children }: AddGroupDialogProps) {
         {children}
       </DialogTrigger>
       <DialogContent className="p-4">
+        <DialogHeader>
+          <DialogTitle>Add Group</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit} className="flex gap-2">
           <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
             <PopoverTrigger asChild>

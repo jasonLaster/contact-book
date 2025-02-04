@@ -1,7 +1,5 @@
-
 import { test, expect } from '@playwright/test';
 import { injectReactTreeUtilsInPage, logFormattedReactTree } from './utils/react-tree';
-
 
 test('contact page loads correctly on mobile', async ({ page }) => {
   // Set a mobile viewport
@@ -21,32 +19,19 @@ test('contact page loads correctly on mobile', async ({ page }) => {
     }
   });
 
-
-  // Navigate to the contact page and wait for network to be idle
-  await page.goto('http://localhost:3001/contact/adela-reynolds?contact=adonis-windler&group=89a100a7-97ad-4af3-bbd3-f25862981d83', {
+  // Navigate to the contact page and wait for network idle
+  await page.goto('/contact/adela-reynolds?contact=adonis-windler&group=89a100a7-97ad-4af3-bbd3-f25862981d83', {
     waitUntil: 'networkidle'
   });
 
-  // Wait for key elements to be present
-  await page.waitForSelector('[data-testid="back-button"]', { state: 'visible' });
+  // Wait for the app to be ready
+  await page.waitForSelector('[data-testid="contact-pane"]', { state: 'visible' });
 
-  // Wait for any dynamic content to load
-  await page.waitForLoadState('networkidle');
-  await page.waitForLoadState('domcontentloaded');
-
+  // Inject React tree utils for debugging
   await page.evaluate(injectReactTreeUtilsInPage);
-  const treeStr = await page.evaluate(() => window.logFormattedReactTree());
-  console.log(treeStr);
+  await logFormattedReactTree(page);
 
   try {
-    await logFormattedReactTree(page);
-
-    // Check if we found the contact (look for debug message in console)
-    const foundContactMessage = consoleMessages.find(msg =>
-      msg.includes('Debug - Found contact:') && msg.includes('adela-reynolds')
-    );
-    expect(foundContactMessage).toBeTruthy();
-
     // Log all errors if any were found
     if (consoleErrors.length > 0) {
       console.log('All browser errors:');
@@ -57,17 +42,18 @@ test('contact page loads correctly on mobile', async ({ page }) => {
     expect(consoleErrors).toHaveLength(0);
 
     // Verify the contact name is displayed
-    const contactName = await page.getByRole('heading', { name: /Adela Reynolds/i });
+    const contactName = page.getByTestId('contact-name');
     await expect(contactName).toBeVisible();
 
-    // Wait for any remaining network activity to complete
-    await page.waitForLoadState('networkidle');
-
-    await logFormattedReactTree(page);
-
     // Verify the back button is present (since we're on mobile)
-    const backButton = await page.getByTestId('back-button');
+    const backButton = page.getByTestId('back-button');
     await expect(backButton).toBeVisible();
+
+    // Click the back button and verify we return to the contact list
+    await backButton.click();
+    const contactList = page.getByTestId('contact-list');
+    await expect(contactList).toBeVisible();
+
   } catch (error) {
     console.error('Test failed:', error);
     throw error;

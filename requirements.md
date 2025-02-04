@@ -455,4 +455,14 @@ The notes field is a key part of the contact details that allows for free-form t
   - Navigating between different contacts
 - This enhancement improves user experience by maintaining search context during navigation
 
+## Testing 
+
+- Preferences
+  - Test core flows. 
+  - Dont test edge cases. 
+- Conventions
+  - Use Playwright for testing
+  - Only use `data-testid` selectors for finding elements to click or add assertions.
+  - Use the `logFormattedReactTree` util to help debug the tests
+
 **End of Requirements**

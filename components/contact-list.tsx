@@ -189,7 +189,7 @@ export function ContactList({ contacts, hideSearchBar = false }: { contacts: Con
           <div className="text-center text-muted-foreground py-8">No contacts found</div>
         ) : (
           <>
-            <div className="pr-8 overflow-auto h-full" id="contact-list-container">
+            <div className="pr-8 overflow-auto h-full" id="contact-list-container" data-testid="contact-list">
               <div className="relative">
                 {flattenedItems.map((item, index) => {
                   if (item.type === "header") {
@@ -211,6 +211,7 @@ export function ContactList({ contacts, hideSearchBar = false }: { contacts: Con
                   return (
                     <div
                       key={item.contact.id}
+                      data-testid="contact-item"
                       className={`px-4 py-2 hover:bg-accent transition-colors cursor-pointer ${
                         selectedContactUrlName === item.contact.urlName ? "bg-accent" : ""
                       }`}

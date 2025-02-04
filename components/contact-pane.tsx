@@ -518,10 +518,10 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
   return (
     <>
-      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "min-h-screen" : ""} transition-opacity duration-200 ${isLoading ? "opacity-50" : "opacity-100"}`}>
+      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "min-h-screen" : ""} transition-opacity duration-200 ${isLoading ? "opacity-50" : "opacity-100"}`} data-testid="contact-pane">
         <div className="h-[56px] px-4 flex items-center justify-between">
           {!isMobile && onClose && (
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} data-testid="back-button">
               <ArrowLeft className="h-6 w-6" />
             </Button>
           )}
@@ -614,9 +614,10 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
                   value={formData.name}
                   onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   className="text-2xl font-semibold text-center"
+                  data-testid="contact-name-input"
                 />
               ) : (
-                <h3 className="text-2xl font-semibold">{formData.name}</h3>
+                <h3 className="text-2xl font-semibold" data-testid="contact-name">{formData.name}</h3>
               )}
             </div>
           </div>

@@ -280,7 +280,7 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
       "flex flex-col h-full border-r transition-all duration-300",
       isCollapsed ? "w-0 overflow-hidden" : "w-[240px]",
       className
-    )}>
+    )} data-testid="groups-sidebar">
       <div className="h-14 flex items-center gap-2 px-4 border-b">
         <BookOpen className="h-5 w-5" />
         <h2 className="font-semibold">Contacts</h2>

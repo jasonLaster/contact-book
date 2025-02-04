@@ -130,9 +130,9 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
   const [selectedEmoji, setSelectedEmoji] = useState("")
   const [optimisticGroups, setOptimisticGroups] = useState(groups)
   const [mounted, setMounted] = useState(false)
-  const favorites = optimisticGroups.filter(g => g.type === 'system' && g.name === 'Favorites')
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+  const [favorites, setFavorites] = useState<(Group & { contactCount: number })[]>([])
   const customGroups = optimisticGroups.filter(g => g.type === 'custom')
-  const selectedGroupId = searchParams.get('group')
   const { toast } = useToast()
 
   // Mount check for client-side only features
@@ -143,6 +143,10 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
   // Update optimistic groups when props change
   useEffect(() => {
     setOptimisticGroups(groups)
+  }, [groups])
+
+  useEffect(() => {
+    setFavorites(groups.filter(g => g.type === 'system' && g.name === 'Favorites'))
   }, [groups])
 
   const sensors = useSensors(
@@ -277,22 +281,12 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
 
   return (
     <div className={cn(
-      "flex flex-col h-full border-r transition-all duration-300",
-      isCollapsed ? "w-0 overflow-hidden" : "w-[240px]",
+      "flex flex-col h-full transition-all duration-300",
       className
     )}>
       <div className="h-14 flex items-center gap-2 px-4 border-b">
         <BookOpen className="h-5 w-5" />
-        <h2 className="font-semibold">Contacts</h2>
-        <div className="flex-1" />
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="shrink-0"
-        >
-          {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-        </Button>
+        <h2 className="font-semibold">Groups</h2>
       </div>
       <div className="flex-1 flex flex-col min-h-0">
         <ScrollArea className="flex-1">
@@ -321,97 +315,9 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
                 <span className="text-xs text-muted-foreground ml-auto">{group.contactCount}</span>
               </div>
             ))}
-            {mounted ? (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-                modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-              >
-                <SortableContext items={customGroups} strategy={verticalListSortingStrategy}>
-                  {customGroups.map(group => (
-                    <SortableGroupItem
-                      key={group.id}
-                      group={group}
-                      selectedGroupId={selectedGroupId}
-                      onEdit={handleEditGroup}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
-            ) : (
-              customGroups.map(group => (
-                <div
-                  key={group.id}
-                  className={cn(
-                    "w-full flex items-center justify-between gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent",
-                    selectedGroupId === group.id && "bg-accent"
-                  )}
-                  onClick={() => handleGroupSelect(group.id)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-4 flex items-center">
-                      {group.name.match(/^(\p{Extended_Pictographic})/u)?.[1] || <div className="w-4" />}
-                    </div>
-                    <span className="truncate">{group.name.replace(/^\p{Extended_Pictographic}/u, '').trim()}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-muted-foreground">{group.contactCount}</span>
-                  </div>
-                </div>
-              ))
-            )}
           </div>
         </ScrollArea>
       </div>
-      <div className="p-2 border-t">
-        <AddGroupDialog>
-          <Button variant="outline" className="w-full">
-            <Plus className="h-4 w-4 mr-2" /> Add Group
-          </Button>
-        </AddGroupDialog>
-      </div>
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="p-4">
-          <DialogHeader>
-            <DialogTitle>Edit Group</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); handleSaveGroup(); }} className="space-y-4">
-            <div className="flex gap-2">
-              <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="shrink-0">
-                    {selectedEmoji || <Smile className="h-4 w-4" />}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0 border-none" side="bottom" align="start">
-                  <EmojiPicker 
-                    onEmojiClick={handleEmojiSelect}
-                    theme={Theme.AUTO}
-                    searchPlaceholder="Search emoji..."
-                    width="100%"
-                    height="350px"
-                  />
-                </PopoverContent>
-              </Popover>
-              <Input
-                value={editedName}
-                onChange={e => setEditedName(e.target.value)}
-                placeholder="Group name"
-                required
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="destructive" onClick={handleDeleteGroup} disabled={isSubmitting}>
-                Delete
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : "Save"}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 } 

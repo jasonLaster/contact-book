@@ -478,49 +478,19 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
   if (isLoading) {
     return (
-      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : ""}`}>
+      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "min-h-screen" : ""}`}>
         <div className="h-[56px] px-4 flex items-center justify-between">
-          {(isMobile || !onClose) && (
-            <Button variant="ghost" size="icon" disabled>
+          {!isMobile && onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose}>
               <ArrowLeft className="h-6 w-6" />
             </Button>
           )}
           <div className="flex-1" />
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" disabled>
-              <Pencil className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="icon" disabled>
-              <Trash2 className="h-5 w-5" />
-            </Button>
-          </div>
         </div>
 
-        <div className="flex flex-col flex-1 p-4 overflow-hidden">
-          <div className="flex flex-col items-center space-y-4 flex-shrink-0">
-            <Skeleton className="w-24 h-24 rounded-full" />
-            <Skeleton className="h-8 w-48" />
-          </div>
-
-          <div className="mt-6 flex flex-col flex-1 min-h-0 overflow-auto">
-            <div className="space-y-2 flex-shrink-0">
-              <Label>Phone Numbers</Label>
-              <div className="space-y-2">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            </div>
-
-            <div className="space-y-2 flex-shrink-0 mt-4">
-              <Label>Email</Label>
-              <Skeleton className="h-10 w-full" />
-            </div>
-
-            <div className="space-y-2 flex flex-col flex-1 min-h-0 overflow-hidden mt-4">
-              <Label>Notes</Label>
-              <Skeleton className="flex-1" />
-            </div>
-          </div>
+        <div className="flex flex-col flex-1 items-center justify-center p-4">
+          <Skeleton className="w-24 h-24 rounded-full" />
+          <Skeleton className="h-8 w-48" />
         </div>
       </div>
     )
@@ -528,10 +498,10 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
   if (!contact) {
     return (
-      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : ""}`}>
+      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "min-h-screen" : ""}`}>
         <div className="h-[56px] px-4 flex items-center justify-between">
-          {isMobile && (
-            <Button variant="ghost" size="icon" disabled>
+          {!isMobile && onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose}>
               <ArrowLeft className="h-6 w-6" />
             </Button>
           )}
@@ -548,10 +518,10 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
 
   return (
     <>
-      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "fixed inset-0 z-50" : ""} transition-opacity duration-200 ${isLoading ? "opacity-50" : "opacity-100"}`}>
+      <div className={`bg-background flex flex-col flex-1 ${isMobile ? "min-h-screen" : ""} transition-opacity duration-200 ${isLoading ? "opacity-50" : "opacity-100"}`}>
         <div className="h-[56px] px-4 flex items-center justify-between">
-          {isMobile && (
-            <Button variant="ghost" size="icon" onClick={handleClose}>
+          {!isMobile && onClose && (
+            <Button variant="ghost" size="icon" onClick={onClose}>
               <ArrowLeft className="h-6 w-6" />
             </Button>
           )}

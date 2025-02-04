@@ -10,3 +10,17 @@ function createFile(urlName) {
   // ... rest of file creation logic ...
 }
 
+import type { ReactNode } from 'react'
+
+export default function ContactLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-1 bg-background">
+      {children}
+    </div>
+  )
+}
+

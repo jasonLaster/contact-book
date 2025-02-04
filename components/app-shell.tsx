@@ -11,6 +11,7 @@ import { SidebarProvider } from "@/lib/contexts/sidebar-context"
 import type { Contact, Group } from "@/lib/db/schema"
 import { useEffect, useState } from "react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useSearchParams } from "next/navigation"
 
 interface AppShellProps {
   contacts: (Contact & { phoneNumbers: any[]; urlName: string })[]
@@ -20,6 +21,10 @@ interface AppShellProps {
 
 export function AppShell({ contacts, groups, selectedContact }: AppShellProps) {
   const [isMobile, setIsMobile] = useState(false)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const searchParams = useSearchParams()
+  const selectedGroupId = searchParams.get('group')
+  const selectedGroup = groups.find(g => g.id === selectedGroupId)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024)
@@ -28,23 +33,35 @@ export function AppShell({ contacts, groups, selectedContact }: AppShellProps) {
     return () => window.removeEventListener("resize", checkMobile)
   }, [])
 
+  const handleDrawerClose = () => {
+    setIsDrawerOpen(false)
+  }
+
   return (
     <SidebarProvider>
       <div className={`h-screen bg-background ${isMobile ? 'flex flex-col' : 'grid grid-cols-[auto_1fr_500px]'}`}>
         {/* Mobile Bottom Sheet Sidebar */}
         {isMobile && (
-          <Sheet>
+          <Sheet open={isDrawerOpen} onOpenChange={setIsDrawerOpen}>
             <SheetTrigger asChild>
               <Button
-                variant="ghost"
-                size="icon"
-                className="fixed bottom-4 left-4 z-50 rounded-full shadow-lg bg-primary text-primary-foreground hover:bg-primary/90"
+                variant="outline"
+                className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 shadow-lg flex items-center gap-2 min-w-[200px] justify-center"
               >
                 <Menu className="h-5 w-5" />
+                <span className="truncate">{selectedGroup ? selectedGroup.name : 'All Contacts'}</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[80vh]">
-              <GroupsSidebar groups={groups} className="h-full border-none" />
+            <SheetContent 
+              side="bottom" 
+              className="h-[80vh] p-0 flex flex-col w-full"
+            >
+              <GroupsSidebar 
+                groups={groups} 
+                className="h-full w-full" 
+                isMobileDrawer={true}
+                onClose={handleDrawerClose}
+              />
             </SheetContent>
           </Sheet>
         )}

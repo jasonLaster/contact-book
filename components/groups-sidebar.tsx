@@ -41,15 +41,18 @@ import { CSS } from '@dnd-kit/utilities'
 interface GroupsSidebarProps {
   groups: (Group & { contactCount: number })[]
   className?: string
+  onClose?: () => void
+  isMobileDrawer?: boolean
 }
 
 interface SortableGroupItemProps {
   group: Group & { contactCount: number }
   selectedGroupId: string | null
   onEdit: (group: Group) => void
+  isMobileDrawer?: boolean
 }
 
-function SortableGroupItem({ group, selectedGroupId, onEdit }: SortableGroupItemProps) {
+function SortableGroupItem({ group, selectedGroupId, onEdit, isMobileDrawer }: SortableGroupItemProps) {
   const {
     attributes,
     listeners,
@@ -83,7 +86,8 @@ function SortableGroupItem({ group, selectedGroupId, onEdit }: SortableGroupItem
         "w-full flex items-center justify-between gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent group",
         "transition-colors duration-200",
         selectedGroupId === group.id && "bg-accent",
-        isDragging && "opacity-50 bg-accent/50 cursor-move"
+        isDragging && "opacity-50 bg-accent/50 cursor-move",
+        isMobileDrawer && "px-4 py-3"
       )}
       {...attributes}
       {...listeners}
@@ -118,7 +122,7 @@ function SortableGroupItem({ group, selectedGroupId, onEdit }: SortableGroupItem
   )
 }
 
-export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
+export function GroupsSidebar({ groups, className, onClose, isMobileDrawer }: GroupsSidebarProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { isCollapsed, setIsCollapsed } = useSidebar()
@@ -205,6 +209,11 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
       params.set('group', groupId)
     }
     router.push(`/?${params.toString()}`)
+    
+    // Close the drawer on mobile after selection
+    if (isMobileDrawer && onClose) {
+      onClose()
+    }
   }
 
   const handleEditGroup = (group: Group) => {
@@ -277,30 +286,40 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
 
   return (
     <div className={cn(
-      "flex flex-col h-full border-r transition-all duration-300",
-      isCollapsed ? "w-0 overflow-hidden" : "w-[240px]",
+      "flex flex-col h-full transition-all duration-300",
+      isMobileDrawer ? "w-full border-none" : "border-r",
+      !isMobileDrawer && isCollapsed ? "w-0 overflow-hidden" : "w-[240px]",
       className
     )} data-testid="groups-sidebar">
-      <div className="h-14 flex items-center gap-2 px-4 border-b">
+      <div className={cn(
+        "h-14 flex items-center gap-2 px-4 border-b",
+        isMobileDrawer && "sticky top-0 bg-background z-10"
+      )}>
         <BookOpen className="h-5 w-5" />
         <h2 className="font-semibold">Contacts</h2>
         <div className="flex-1" />
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="shrink-0"
-        >
-          {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
-        </Button>
+        {!isMobileDrawer && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="shrink-0"
+          >
+            {isCollapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+          </Button>
+        )}
       </div>
       <div className="flex-1 flex flex-col min-h-0">
         <ScrollArea className="flex-1">
-          <div className="px-2 py-2">
+          <div className={cn(
+            "px-2 py-2",
+            isMobileDrawer && "px-4"
+          )}>
             <div
               className={cn(
                 "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent cursor-pointer",
-                !selectedGroupId && "bg-accent"
+                !selectedGroupId && "bg-accent",
+                isMobileDrawer && "px-4 py-3"
               )}
               onClick={() => handleGroupSelect(null)}
             >
@@ -312,7 +331,8 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
                 key={group.id}
                 className={cn(
                   "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent cursor-pointer",
-                  selectedGroupId === group.id && "bg-accent"
+                  selectedGroupId === group.id && "bg-accent",
+                  isMobileDrawer && "px-4 py-3"
                 )}
                 onClick={() => handleGroupSelect(group.id)}
               >
@@ -335,6 +355,7 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
                       group={group}
                       selectedGroupId={selectedGroupId}
                       onEdit={handleEditGroup}
+                      isMobileDrawer={isMobileDrawer}
                     />
                   ))}
                 </SortableContext>
@@ -345,7 +366,8 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
                   key={group.id}
                   className={cn(
                     "w-full flex items-center justify-between gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent",
-                    selectedGroupId === group.id && "bg-accent"
+                    selectedGroupId === group.id && "bg-accent",
+                    isMobileDrawer && "px-4 py-3"
                   )}
                   onClick={() => handleGroupSelect(group.id)}
                 >
@@ -364,7 +386,10 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
           </div>
         </ScrollArea>
       </div>
-      <div className="p-2 border-t">
+      <div className={cn(
+        "p-2 border-t",
+        isMobileDrawer && "px-4 py-3 sticky bottom-0 bg-background"
+      )}>
         <AddGroupDialog>
           <Button variant="outline" className="w-full">
             <Plus className="h-4 w-4 mr-2" /> Add Group

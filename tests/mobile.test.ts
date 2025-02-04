@@ -1,6 +1,29 @@
 import { test, expect } from '@playwright/test';
 import { injectReactTreeUtilsInPage, logFormattedReactTree } from './utils/react-tree';
 
+test('contact list loads and displays contacts on mobile', async ({ page }) => {
+  // Set a mobile viewport
+  await page.setViewportSize({ width: 375, height: 667 });
+
+  // Navigate to the home page
+  await page.goto('/', { waitUntil: 'networkidle' });
+
+  // Wait for the contact list to be visible
+  const contactList = page.getByTestId('contact-list');
+  await expect(contactList).toBeVisible();
+
+  // Get all contact items
+  const contactItems = page.getByTestId('contact-item');
+
+  // Verify we have at least one contact
+  const count = await contactItems.count();
+  expect(count).toBeGreaterThan(0);
+
+  // Verify the first contact has a name
+  const firstContactName = await contactItems.first().textContent();
+  expect(firstContactName).toBeTruthy();
+});
+
 test('contact page loads correctly on mobile', async ({ page }) => {
   // Set a mobile viewport
   await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE dimensions

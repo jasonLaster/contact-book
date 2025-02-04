@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { injectReactTreeUtilsInPage, logFormattedReactTree } from './utils/react-tree';
 
-test.describe('Contact List Desktop Tests', () => {
+test.describe(' Desktop Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Set desktop viewport
     await page.setViewportSize({ width: 1280, height: 800 });

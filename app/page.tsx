@@ -12,13 +12,26 @@ interface PageProps {
 export default async function Page({
   searchParams,
 }: PageProps) {
+  console.log('Debug - Page component searchParams:', searchParams)
+  
   const [contacts, groups] = await Promise.all([
-    getContacts(searchParams?.search, searchParams?.group),
-    getGroups()
+    getContacts(searchParams.search, searchParams.group),
+    getGroups(),
   ])
   
-  const selectedContact = contacts.find((c) => c.urlName === searchParams?.contact)
+  console.log('Debug - Fetched contacts count:', contacts.length)
+  console.log('Debug - Fetched groups count:', groups.length)
 
-  return <AppShell contacts={contacts} groups={groups} selectedContact={selectedContact} />
+  const selectedContact = searchParams.contact
+    ? contacts.find((c) => c.urlName === searchParams.contact)
+    : undefined
+
+  return (
+    <AppShell
+      contacts={contacts}
+      groups={groups}
+      selectedContact={selectedContact}
+    />
+  )
 }
 

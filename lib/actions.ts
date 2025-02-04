@@ -37,6 +37,8 @@ export async function getGroups() {
 
 export async function getContacts(search?: string, groupId?: string) {
   try {
+    console.log('Debug - getContacts called with:', { search, groupId })
+
     // First get all contacts
     const query = db.select({
       contact: contacts,
@@ -47,11 +49,12 @@ export async function getContacts(search?: string, groupId?: string) {
 
     const finalQuery = groupId
       ? query
-        .innerJoin(contactGroups, eq(contacts.id, contactGroups.contactId))
+        .leftJoin(contactGroups, eq(contacts.id, contactGroups.contactId))
         .where(eq(contactGroups.groupId, groupId))
       : query
 
     const results = await finalQuery
+    console.log('Debug - Query results count:', results.length)
 
     // Create a map of contact IDs to their phone numbers
     const phoneNumbersMap = new Map<string, PhoneNumber[]>()
@@ -80,13 +83,17 @@ export async function getContacts(search?: string, groupId?: string) {
         urlName: contact.name.toLowerCase().replace(/\s+/g, "-")
       }))
 
+    console.log('Debug - Final contacts array length:', contactsArray.length)
+
     if (search) {
-      return contactsArray.filter(
+      const filteredContacts = contactsArray.filter(
         contact =>
           contact.name.toLowerCase().includes(search.toLowerCase()) ||
           contact.phoneNumbers.some(phone => phone.number.includes(search)) ||
           (contact.email && contact.email.toLowerCase().includes(search.toLowerCase())),
       )
+      console.log('Debug - Search filtered contacts length:', filteredContacts.length)
+      return filteredContacts
     }
 
     return contactsArray

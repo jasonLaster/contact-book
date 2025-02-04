@@ -22,6 +22,8 @@ The code is split into multiple files in the `app/` directory (Next.js route han
 
 ### 2.1 Next.js App Structure
 
+- NextJS version: 15.2.0-canary.27
+
 - **`app/layout.tsx`**  
   Defines the root layout of the application (basic HTML structure, global CSS import).
 

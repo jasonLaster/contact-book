@@ -129,10 +129,16 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedEmoji, setSelectedEmoji] = useState("")
   const [optimisticGroups, setOptimisticGroups] = useState(groups)
+  const [mounted, setMounted] = useState(false)
   const favorites = optimisticGroups.filter(g => g.type === 'system' && g.name === 'Favorites')
   const customGroups = optimisticGroups.filter(g => g.type === 'custom')
   const selectedGroupId = searchParams.get('group')
   const { toast } = useToast()
+
+  // Mount check for client-side only features
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Update optimistic groups when props change
   useEffect(() => {
@@ -315,23 +321,46 @@ export function GroupsSidebar({ groups, className }: GroupsSidebarProps) {
                 <span className="text-xs text-muted-foreground ml-auto">{group.contactCount}</span>
               </div>
             ))}
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-            >
-              <SortableContext items={customGroups} strategy={verticalListSortingStrategy}>
-                {customGroups.map(group => (
-                  <SortableGroupItem
-                    key={group.id}
-                    group={group}
-                    selectedGroupId={selectedGroupId}
-                    onEdit={handleEditGroup}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
+            {mounted ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+                modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+              >
+                <SortableContext items={customGroups} strategy={verticalListSortingStrategy}>
+                  {customGroups.map(group => (
+                    <SortableGroupItem
+                      key={group.id}
+                      group={group}
+                      selectedGroupId={selectedGroupId}
+                      onEdit={handleEditGroup}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            ) : (
+              customGroups.map(group => (
+                <div
+                  key={group.id}
+                  className={cn(
+                    "w-full flex items-center justify-between gap-2 px-2 py-1.5 text-sm rounded-md hover:bg-accent",
+                    selectedGroupId === group.id && "bg-accent"
+                  )}
+                  onClick={() => handleGroupSelect(group.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 flex items-center">
+                      {group.name.match(/^(\p{Extended_Pictographic})/u)?.[1] || <div className="w-4" />}
+                    </div>
+                    <span className="truncate">{group.name.replace(/^\p{Extended_Pictographic}/u, '').trim()}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground">{group.contactCount}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </ScrollArea>
       </div>

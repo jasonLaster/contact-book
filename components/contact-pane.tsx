@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Trash2, ArrowLeft, UserCircle2, Pencil, X, Upload, Loader2, Plus, GripVertical, Save, Users } from "lucide-react"
+import { Trash2, ArrowLeft, UserCircle2, Pencil, X, Upload, Loader2, Plus, GripVertical, Save, Users, Copy, Check } from "lucide-react"
 import { deleteContact, updateContact, addContactToGroup, removeContactFromGroup } from "@/lib/actions"
 import { formatPhoneNumber } from "@/lib/utils"
 import "@/styles/animations.css"
@@ -69,9 +69,9 @@ interface ContactUpdateData {
     label: string
     isPrimary: boolean
   }[]
-  email?: string | null
-  notes?: string | null
-  imageUrl?: string | null
+  email?: string | undefined
+  notes?: string | undefined
+  imageUrl?: string | undefined
 }
 
 interface GroupWithContacts extends Group {
@@ -162,6 +162,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
   const dragOverItem = useRef<number | null>(null)
   const notesTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const previousContactRef = useRef<typeof contact>(null)
+  const previousNotesRef = useRef<string>("")
   const { groups, refreshGroups } = useGroups()
 
   useEffect(() => {
@@ -171,6 +172,7 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
         setFormData(updatedFormData)
         setLocalNotes(contact.notes || "")
         previousContactRef.current = contact
+        previousNotesRef.current = contact.notes || ""
       }
     }
   }, [contact, isLoading])
@@ -401,11 +403,16 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
     
     if (notesTimeoutRef.current) {
       clearTimeout(notesTimeoutRef.current);
+      notesTimeoutRef.current = null;
     }
     
-    notesTimeoutRef.current = setTimeout(() => {
-      handleSaveNotes(newValue);
-    }, 1000);
+    // Only set up auto-save timeout if the notes aren't empty
+    if (newValue.trim()) {
+      const timeoutId = setTimeout(() => {
+        handleSaveNotes(newValue);
+      }, 1000) as unknown as NodeJS.Timeout;
+      notesTimeoutRef.current = timeoutId;
+    }
   }
 
   const handleSaveNotes = async (notes: string) => {
@@ -420,11 +427,19 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
       });
       await updateContact(contact.id, updateData);
       setFormData(prev => ({ ...prev, notes: notes.trim() === "" ? undefined : notes }));
+      previousNotesRef.current = notes;
       console.log('Save completed, will clear isSavingNotes in 1 second');
-      setTimeout(() => {
+      
+      if (notesTimeoutRef.current) {
+        clearTimeout(notesTimeoutRef.current);
+        notesTimeoutRef.current = null;
+      }
+      
+      const timeoutId = setTimeout(() => {
         console.log('Clearing isSavingNotes');
         setIsSavingNotes(false);
-      }, 1000);
+      }, 1000) as unknown as NodeJS.Timeout;
+      notesTimeoutRef.current = timeoutId;
     } catch (error) {
       console.error("Error updating notes:", error);
       toast({
@@ -655,13 +670,40 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
                         <GripVertical className="h-5 w-5 text-muted-foreground/50" />
                       </div>
                     )}
-                    <Input
-                      value={phone.number}
-                      onChange={(e) => handlePhoneChange(index, "number")(e)}
-                      placeholder="Phone number"
-                      disabled={!isEditing}
-                      className="flex-grow"
-                    />
+                    <div className="flex-grow relative group">
+                      <Input
+                        value={phone.number}
+                        onChange={(e) => handlePhoneChange(index, "number")(e)}
+                        placeholder="Phone number"
+                        disabled={!isEditing}
+                        className={`pr-10 ${!isEditing ? "cursor-default disabled:opacity-100" : ""}`}
+                      />
+                      {!isEditing && phone.number && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(phone.number);
+                              toast({
+                                title: "Copied!",
+                                description: "Phone number copied to clipboard",
+                                duration: 2000,
+                              });
+                            } catch (error) {
+                              toast({
+                                title: "Error",
+                                description: "Failed to copy phone number",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                     {isEditing ? (
                       <Select value={phone.isPrimary ? "primary" : "secondary"} onValueChange={(value) => handlePhoneChange(index, "isPrimary")(value === "primary")}>
                         <SelectTrigger className="w-[120px]">
@@ -716,9 +758,15 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
                     if (notesTimeoutRef.current) {
                       clearTimeout(notesTimeoutRef.current);
                     }
-                    setIsSavingNotes(true);
-                    console.log('Set isSavingNotes to true on blur');
-                    handleSaveNotes(formData.notes || "");
+                    const currentNotes = formData.notes?.trim() || "";
+                    const previousNotes = previousNotesRef.current?.trim() || "";
+                    
+                    // Only save if there are actual changes and the notes aren't empty
+                    if (currentNotes !== previousNotes && currentNotes !== "") {
+                      setIsSavingNotes(true);
+                      console.log('Set isSavingNotes to true on blur');
+                      handleSaveNotes(currentNotes);
+                    }
                   }}
                   placeholder="Add notes..."
                   className={`flex-1 resize-none overflow-auto min-h-[120px] p-3 bg-background border-0 focus-visible:ring-0 ${
@@ -747,4 +795,3 @@ export function ContactPane({ contact, onClose, isMobile, isLoading }: ContactPa
     </>
   )
 }
-

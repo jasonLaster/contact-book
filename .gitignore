@@ -1,9 +1,9 @@
 # dependencies
-/node_modules
+node_modules
 .DS_Store
 
 # next.js
-/.next/
+.next/
 /out/
 
 # production
@@ -27,3 +27,17 @@ next-env.d.ts
 .env*.local
 
 test-results
+
+# vim
+*.swp
+*.swo
+
+# git
+.git/
+
+# misc
+*~
+.DS_Store*
+._*
+.Spotlight-V100
+.Trashes
